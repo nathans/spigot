@@ -19,6 +19,7 @@
 
 import ConfigParser
 import logging
+import os
 import sqlite3
 import sys
 
@@ -34,6 +35,39 @@ except ImportError, e:
     print "Error: %s" % e
     sys.exit(2)
 
+class SpigotDB():
+    """Handle database calls for Spigot"""
+    
+    def __init__(self, path):
+        self.path = path
+        # Check first for a database file
+        if not os.path.exists(path):
+            self._init_db_tables()
+            logging.info("Database file does not exist.")
+        # Should probably check to make sure db is not mangled
+        
+        self._db = sqlite3.connect(self.path)
+        logging.debug("Opened connection to database")
+        
+    def close(self):
+        """Cleanup after the db is no longer needed."""
+        
+        self._db.close()
+        logging.debug("Closed connection to database")
+        
+            
+    def _init_db_tables():
+        conn = sqlite3.connect(path)
+        curs = conn.cursor()
+        # Figure out db tables based on tricklepost
+        create_query = """create table items (feed text, link text, title text,
+            hash text, account text, published text)"""
+        curs.execute(create_query)
+        conn.commit()
+        logging.info("Initialized database tables")
+        curs.close()
+        conn.close()
+
 class SpigotFeedPoller():
     """
     Handle the parsing of feeds.conf configuration file and polling the
@@ -43,11 +77,14 @@ class SpigotFeedPoller():
     """
 
     def __init__(self):
-        self.feeds_to_poll = []
+        self.feeds_to_poll = []     
+        self.feeds_to_poll = self.parse_config()
+        for feed in self.feeds_to_poll:
+            self.scan_feed(feed)
         
-        self._parse_config()
+    def parse_config(self):
+        """Returns a list of syndicated feeds to check for new posts."""
         
-    def _parse_config(self):
         logging.info("Loading feeds.conf")
         feeds_config = ConfigParser.RawConfigParser()
         if not feeds_config.read("feeds.conf"):
@@ -71,11 +108,17 @@ class SpigotFeedPoller():
                     "account"))
                 logging.debug("  Interval: %s min" % feeds_config.get(feed,
                     "interval"))
-                self.feeds_to_poll.append(feed)
+                feeds_to_poll.append(feed)
                 logging.debug("  Added to list of feeds to poll")
                 
             else:
                 logging.warning("  Missing necessary options, skipping")
+        return feeds_to_poll
+        
+        def scan_feed(self, feed):
+            """Poll the given feed and then update the database with new info"""
+            
+            pass
 
 
 if __name__ == "__main__":

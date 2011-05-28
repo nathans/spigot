@@ -38,35 +38,47 @@ except ImportError, e:
 class SpigotDB():
     """Handle database calls for Spigot"""
     
-    def __init__(self, path):
+    def __init__(self, path="spigot.db"):
         self.path = path
+        self._connect()
+
+    ### SpigotDB private methods
+
+    def _connect(self):
+        """Establish the database connection for this instantiation."""
+
         # Check first for a database file
-        if not os.path.exists(path):
-            self._init_db_tables()
-            logging.info("Database file does not exist.")
-        # Should probably check to make sure db is not mangled
+        if not os.path.exists(self.path):
+            new_db = True
+            logging.info("Database file '%s' does not exist" % self.path)
+        try:
+            self._db = sqlite3.connect(self.path)
+        except:
+            logging.exception("Could not connect to database %s" % self.path)
+            sys.exit(2)
+            
+        if new_db:
+                self._init_db_tables()
+                
+    def _init_db_tables(self):
+        """Initialize the database if it is new"""
+
+        curs = self._db.cursor()
+        # Figure out db tables based on tricklepost
+        create_query = """create table items (feed text, link text, title text,
+            hash text, account text, published text)"""
+        curs.execute(create_query)
+        self._db.commit()
+        logging.info("Initialized database tables")
+        curs.close()
         
-        self._db = sqlite3.connect(self.path)
-        logging.debug("Opened connection to database")
-        
+        ### SpigotDB public methods
+
     def close(self):
         """Cleanup after the db is no longer needed."""
         
         self._db.close()
         logging.debug("Closed connection to database")
-        
-            
-    def _init_db_tables():
-        conn = sqlite3.connect(path)
-        curs = conn.cursor()
-        # Figure out db tables based on tricklepost
-        create_query = """create table items (feed text, link text, title text,
-            hash text, account text, published text)"""
-        curs.execute(create_query)
-        conn.commit()
-        logging.info("Initialized database tables")
-        curs.close()
-        conn.close()
 
 class SpigotFeedPoller():
     """
@@ -85,6 +97,8 @@ class SpigotFeedPoller():
     def parse_config(self):
         """Returns a list of syndicated feeds to check for new posts."""
         
+        # Make feeds to poll an internal variable for this function
+        feeds_to_poll = []
         logging.info("Loading feeds.conf")
         feeds_config = ConfigParser.RawConfigParser()
         if not feeds_config.read("feeds.conf"):
@@ -95,7 +109,7 @@ class SpigotFeedPoller():
         if feeds_num == 0:
             logging.warning("No feeds found in feeds.conf")
         else:
-            logging.debug("Found %d feeds in feeds.conf" % feeds_num)
+            logging.info("Found %d feeds in feeds.conf" % feeds_num)
         for feed in feeds:
             logging.debug("Processing feed '%s'" % feed)
             # Ensure that the feed section has the needed attributes
@@ -118,13 +132,14 @@ class SpigotFeedPoller():
         def scan_feed(self, feed):
             """Poll the given feed and then update the database with new info"""
             
+            p
             pass
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, \
                             format='%(asctime)s %(levelname)s: %(message)s')
-    logging.info("spigot startup")
+    logging.debug("spigot startup")
 
     # Parse accounts configration file
     # Move all this to a posting class
@@ -133,7 +148,7 @@ if __name__ == "__main__":
 #    if not accounts_config.read("accounts.conf"):
 #        logging.error("Could not parse accounts.conf")
 #        sys.exit(2)
-
+    spigot_db = SpigotDB()
     spigot_feed = SpigotFeedPoller()
     
     

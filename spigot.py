@@ -32,7 +32,9 @@ import feedparser
 
 
 class SpigotDB():
-    """Handle database calls for Spigot"""
+    """
+    Handle database calls for Spigot
+    """
  
     def __init__(self, path="spigot.db"):
         self.path = path
@@ -105,13 +107,22 @@ class SpigotDB():
         through to the specified statusnet account."""
         
         curs = self._db.cursor()
-        curs.execute("select * from items where posted is NULL")
-        unposted_items = curs.fetchone()
+        curs.execute("SELECT * FROM items where posted is NULL")
+        unposted_items = curs.fetchall()
         logging.info("Found %d unposted items" % len(unposted_items))
         curs.close()
-        print unposted_items
         return unposted_items
+
+    def mark_posted(self, item_hash):
+        """Mark the given item posted by setting its posted datetime to now."""
         
+        pass
+    
+    def get_latest_posts(self, feed):
+        """Return the datetime of the most recent item posted by spigot of the
+        specified feed."""
+        
+        pass
 
 class SpigotFeeds():
     """
@@ -124,21 +135,18 @@ class SpigotFeeds():
     def __init__(self, db):
         self._spigotdb = db
         logging.debug("Loading feeds.conf")
-        self.feeds_config = ConfigParser.RawConfigParser()
-        if not self.feeds_config.read("feeds.conf"):
+        self._feeds_config = ConfigParser.RawConfigParser()
+        if not self._feeds_config.read("feeds.conf"):
             logging.error("Could not parse feeds.conf")
             sys.exit(2)
         self.feeds_to_poll = []     
-        self.feeds_to_poll = self.parse_config()
-        for feed, feed_url, account in self.feeds_to_poll:
-            self.scan_feed(feed, feed_url, account)
 
     def parse_config(self):
         """Returns a list of syndicated feeds to check for new posts."""
         
         # Make feeds to poll an internal variable for this function
         feeds_to_poll = []
-        feeds = self.feeds_config.sections()
+        feeds = self._feeds_config.sections()
         feeds_num = len(feeds)
         if feeds_num == 0:
             logging.warning("No feeds found in feeds.conf")
@@ -149,14 +157,14 @@ class SpigotFeeds():
             
             # Ensure that the feed section has the needed attributes
             # If not, treat as a non-fatal error, but warn the user
-            if ( self.feeds_config.has_option(feed, "url") &
-                     self.feeds_config.has_option(feed, "account") &
-                     self.feeds_config.has_option(feed, "interval") ):
-                url = self.feeds_config.get(feed, "url")
+            if ( self._feeds_config.has_option(feed, "url") &
+                     self._feeds_config.has_option(feed, "account") &
+                     self._feeds_config.has_option(feed, "interval") ):
+                url = self._feeds_config.get(feed, "url")
                 logging.debug("  URL: %s" % url)
-                account = self.feeds_config.get(feed, "account")
+                account = self._feeds_config.get(feed, "account")
                 logging.debug("  Account: %s" % account)
-                logging.debug("  Interval: %s min" % self.feeds_config.get(feed,
+                logging.debug("  Interval: %s min" % self._feeds_config.get(feed,
                     "interval"))
                 feeds_to_poll.append((feed, url, account))
                 logging.debug("  Added to list of feeds to poll")
@@ -164,6 +172,13 @@ class SpigotFeeds():
             else:
                 logging.warning("  Missing necessary options, skipping")
         return feeds_to_poll
+
+    def poll_feeds(self):
+        """Check the configured feeds for new posts."""
+        
+        self.feeds_to_poll = self.parse_config()
+        for feed, feed_url, account in self.feeds_to_poll:
+            self.scan_feed(feed, feed_url, account)
 
     def scan_feed(self, feed, feed_url, account):
         """Poll the given feed and then update the database with new info"""
@@ -213,16 +228,27 @@ class SpigotFeeds():
     def get_format(self, feed):
         """Returns the format string from feeds.conf for the given feed."""
         
-        return self.feeds_config.get(feed, "format")
+        return self._feeds_config.get(feed, "format")
+        
+    def get_feed_interval(self, feed):
+        """Return the interval from feeds.conf of the specified feed."""
+        
+        return self._feeds_config.get(geed, "interval")
 
 class SpigotPost():
-    """Handle the posting of syndicated content stored in the SpigotDB to the 
-    statusnet account."""
+    """
+    Handle the posting of syndicated content stored in the SpigotDB to the 
+    statusnet account.
+    """
     
     def __init__(self, db, spigot_feed):
         self._spigotdb = db
         self._spigotfeed = spigot_feed
-        unposted_items = self._spigotdb.get_unposted_items()
+        self._accounts_config = ConfigParser.RawConfigParser()
+        if not self._accounts_config.read("accounts.conf"):
+            logging.error("Could not parse accounts.conf")
+            sys.exit(2)
+        self.post_items()
 
     ### SpigotPost private methods
 
@@ -235,22 +261,26 @@ class SpigotPost():
 
     ### SpigotPost public methods
     
-
-
+    def post_items(self):
+        """Handle the posting of unposted items."""
+        
+        unposted_items = self._spigotdb.get_unposted_items()
+        for item in unposted_items:
+            feed = item['feed']
+            url = item['link']
+            title = item['title']
+            item_hash = item['hash']
+            account = item['hash']
+            
+        
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, \
                             format='%(asctime)s %(levelname)s: %(message)s')
     logging.debug("spigot startup")
-
-    # Parse accounts configration file
-    # Move all this to a posting class
-#    logging.info("Loading accounts.conf")
-#    accounts_config = ConfigParser.RawConfigParser()
-#    if not accounts_config.read("accounts.conf"):
-#        logging.error("Could not parse accounts.conf")
-#        sys.exit(2)
     spigot_db = SpigotDB()
     spigot_feed = SpigotFeeds(spigot_db)
+    # Make this behavior configurable
+    spigot_feed.poll_feeds()
     spigot_post = SpigotPost(spigot_db, spigot_feed)
     
     

@@ -51,7 +51,8 @@ class SpigotDB():
             new_db = True
             logging.info("Database file %s does not exist" % self.path)
         try:
-            self._db = sqlite3.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+            self._db = sqlite3.connect(self.path,
+                detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
         except:
             logging.exception("Could not connect to database %s" % self.path)
             sys.exit(2)
@@ -65,7 +66,7 @@ class SpigotDB():
         curs = self._db.cursor()
         # Figure out db tables based on tricklepost
         create_query = """create table items (feed text, link text, title text,
-            hash text, account text, date timestamp, posted timestamp)"""
+            hash text, date timestamp, posted timestamp)"""
         curs.execute(create_query)
         self._db.commit()
         logging.info("Initialized database tables")
@@ -90,15 +91,13 @@ class SpigotDB():
             return False
         curs.close()
             
-    def add_item(self, feed_name, link, title, item_hash, account, date):
+    def add_item(self, feed_name, link, title, item_hash, date):
         """Add an item to the database with the given parameters. Return True if
         successful."""
         
         curs = self._db.cursor()
-        curs.execute("insert into items(feed, link, title, hash, account, \
-            date) values (?, ?, ?, ?, ?, ?)",
-            (feed_name, link, title, item_hash, account, date))
-        logging.debug("    add_item date type: %s" % type(date))
+        curs.execute("insert into items(feed, link, title, hash, date) \
+            values (?, ?, ?, ?, ?)", (feed_name, link, title, item_hash, date))
         logging.debug("    Added item %s to database" % item_hash)
         curs.close()
         
@@ -109,10 +108,11 @@ class SpigotDB():
         through to the specified statusnet account."""
         
         curs = self._db.cursor()
-        curs.execute("SELECT * FROM items where (posted is NULL AND feed=?)",
-            [feed])
+        curs.execute("SELECT * FROM items where (posted is NULL AND feed=?) \
+            ORDER BY date ASC",[feed])
         unposted_items = curs.fetchall()
-        logging.info("Found %d unposted items in feed %s" % (len(unposted_items),feed))
+        num_items = len(unposted_items)
+        logging.info("  Found %d unposted items in feed %s" % (num_items,feed))
         curs.close()
         return unposted_items
 
@@ -120,10 +120,10 @@ class SpigotDB():
         """Mark the given item posted by setting its posted datetime to now."""
         
         now = datetime.now()
-        logging.debug("mark_posted now type: %s" % type(now))
         curs = self._db.cursor()
         curs.execute("UPDATE items SET posted=? WHERE hash=?",(now, item_hash))
-        logging.debug("Updated posted time of item %s in database" % item_hash)
+        logging.debug("  Updated posted time of item %s in database"
+            % item_hash)
         curs.close()
         self._db.commit()
     
@@ -132,18 +132,17 @@ class SpigotDB():
         specified feed. If none have been posted, return None"""
         
         curs = self._db.cursor()
-        # Try selecting the dang date to see if that gets a correct type!!!
-        #curs.execute("SELECT date FROM items WHERE feed=? ORDER BY date LIMIT 1", [feed])
-        curs.execute("SELECT posted FROM items WHERE (feed=? AND posted is not NULL) ORDER BY posted DESC LIMIT 1",[feed])    
+        curs.execute("SELECT posted FROM items WHERE \
+            (feed=? AND posted is not NULL) ORDER BY posted DESC LIMIT 1",
+            [feed])    
         result = curs.fetchone()
         curs.close()
         if result:
-            print type(result[0])
-            logging.debug("Latest post for feed %s is %s" % (feed, 
+            logging.debug("  Latest post for feed %s is %s" % (feed, 
                 result[0]))
             return result[0]
         else:
-            logging.debug("No items from feed %s have been posted" % feed)
+            logging.debug("  No items from feed %s have been posted" % feed)
             return None
         
 
@@ -187,8 +186,8 @@ class SpigotFeeds():
                 logging.debug("  URL: %s" % url)
                 account = self._feeds_config.get(feed, "account")
                 logging.debug("  Account: %s" % account)
-                logging.debug("  Interval: %s min" % self._feeds_config.get(feed,
-                    "interval"))
+                logging.debug("  Interval: %s min" %
+                    self._feeds_config.get(feed, "interval"))
                 feeds_to_poll.append((feed, url, account))
                 logging.debug("  Added to list of feeds to poll")
                 
@@ -242,7 +241,7 @@ class SpigotFeeds():
             if not self._spigotdb.check_hash(item_hash):
                 logging.debug("    Not in database")
                 self._spigotdb.add_item(feed, link, title, item_hash,
-                    account, date_struct)
+                    date_struct)
                 new_items += 1
             else:
                 logging.debug("    Already in database")
@@ -270,18 +269,16 @@ class SpigotFeeds():
             now = datetime.now()
             if now >= next:
                 #post it                
-                logging.info("Feed %s is ready for a new post" % feed)
+                logging.info("  Feed %s is ready for a new post" % feed)
                 return True
             else:
-                logging.info("Feed %s has been posted too recently" % feed)
-                logging.info("Next post at %s" % next.isoformat())
+                logging.info("  Feed %s has been posted too recently" % feed)
+                logging.info("  Next post at %s" % next.isoformat())
                 return False
         else:
             # Nothing has been posted for this feed, so it is OK to post
             return True
         
-        
-
 
 class SpigotPost():
     """
@@ -309,9 +306,6 @@ class SpigotPost():
 
     ### SpigotPost public methods
 
-
-
-
     def post_items(self):
         """Handle the posting of unposted items.
         
@@ -323,7 +317,7 @@ class SpigotPost():
         
         feeds = self._spigotfeed.feeds_to_poll
         for feed, feed_url, account in feeds:
-            logging.debug("Determining if posts in feed %s are eligible for posting" % feed)
+            logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
@@ -334,14 +328,11 @@ class SpigotPost():
                 link = item[1]
                 title = item[2]
                 item_hash = item[3]
-                logging.info("Posting item %s from %s feed to account %s" % (item_hash,feed,account))
+                logging.info("  Posting item %s from %s feed to account %s" %
+                    (item_hash,feed,account))
                 self._spigotdb.mark_posted(item_hash)
-                    
-                
-                
-                
+  
        
-        
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, \
                             format='%(asctime)s %(levelname)s: %(message)s')

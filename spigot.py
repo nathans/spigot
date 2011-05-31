@@ -116,12 +116,13 @@ class SpigotDB():
         curs.close()
         return unposted_items
 
-    def mark_posted(self, item_hash):
+    def mark_posted(self, item_hash, date=None):
         """Mark the given item posted by setting its posted datetime to now."""
         
-        now = datetime.now()
+        if not date:
+            date = datetime.now()
         curs = self._db.cursor()
-        curs.execute("UPDATE items SET posted=? WHERE hash=?",(now, item_hash))
+        curs.execute("UPDATE items SET posted=? WHERE hash=?",(date, item_hash))
         logging.debug("  Updated posted time of item %s in database"
             % item_hash)
         curs.close()
@@ -297,12 +298,52 @@ class SpigotPost():
 
     ### SpigotPost private methods
 
-    def _check_duplicate(self, account, content):
+    def _get_account_posts(self, account):
+        """Pares the recent posts of the specified account for duplicate
+        checking."""
+        
+        service = self._accounts_config.get(account, "service")
+        username = self._accounts_config.get(account, "username")
+        
+        feed_url = "%s/%s/rss" % (service, username)
+        try:
+            self._acct_parse = feedparser.parse(feed_url)
+        except:
+            logging.warning("  Unable to parse account feed %s" % feed_url)
+            return False
+
+    def _check_duplicate(self, account, message, item_hash):
         """Return True if the given content has been posted on the given
         statusnet account recently. Otherwise return False. Intended to prevent
         accidental duplicate posts."""
         
-        pass
+        username = self._accounts_config.get(account, "username")
+        formatted_message = "%s: %s" % (username, message)
+        duplicate = False
+        for i in range(len(self._acct_parse.entries)):
+            if formatted_message == self._acct_parse.entries[i].title:
+                duplicate = True
+                # Update the posted time in the database
+                real_date = self._acct_parse.entries[i].date_parsed
+                date = datetime.fromtimestamp(mktime(real_date))
+                logging.warning("  Item %s has already been posted. Correcting"
+                    % item_hash)
+                self._spigotdb.mark_posted(item_hash, date)
+        return duplicate
+
+    def _format_message(self, feed, link, title):
+        """Return a string formatted according to the feed's configuration.
+        
+        Replacement strings:
+        $t : title
+        $l : link"""
+        
+        raw_format = self._spigotfeed.get_format(feed)
+        message = raw_format.replace("$t",title)
+        message = message.replace("$l",link)
+        logging.debug("  Posted message will be %s" % message)
+        return message
+
 
     ### SpigotPost public methods
 
@@ -317,6 +358,8 @@ class SpigotPost():
         
         feeds = self._spigotfeed.feeds_to_poll
         for feed, feed_url, account in feeds:
+            # Need to make sure the specified account is configured
+            self._get_account_posts()
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
             while self._spigotfeed.feed_ok_to_post(feed):
@@ -328,9 +371,13 @@ class SpigotPost():
                 link = item[1]
                 title = item[2]
                 item_hash = item[3]
-                logging.info("  Posting item %s from %s feed to account %s" %
-                    (item_hash,feed,account))
-                self._spigotdb.mark_posted(item_hash)
+                message = self._format_message(feed, link, title)
+                # Make sure that it has not been posted recently
+                if not self._check_duplicate(account, message, item_hash):
+                    logging.info("  Posting item %s from %s feed to account %s"
+                        % (item_hash,feed,account))
+                    # Actually post it here
+                    self._spigotdb.mark_posted(item_hash)
   
        
 if __name__ == "__main__":

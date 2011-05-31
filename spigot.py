@@ -326,7 +326,7 @@ class SpigotPost():
                 # Update the posted time in the database
                 real_date = self._acct_parse.entries[i].date_parsed
                 date = datetime.fromtimestamp(mktime(real_date))
-                logging.warning("  Item %s has already been posted. Correcting"
+                logging.warning("  Item %s has already been posted. Correcting."
                     % item_hash)
                 self._spigotdb.mark_posted(item_hash, date)
         return duplicate
@@ -358,8 +358,8 @@ class SpigotPost():
         
         feeds = self._spigotfeed.feeds_to_poll
         for feed, feed_url, account in feeds:
-            # Need to make sure the specified account is configured
-            self._get_account_posts()
+            # TODO Need to make sure the specified account is configured
+            self._get_account_posts(account)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
             while self._spigotfeed.feed_ok_to_post(feed):
@@ -376,7 +376,7 @@ class SpigotPost():
                 if not self._check_duplicate(account, message, item_hash):
                     logging.info("  Posting item %s from %s feed to account %s"
                         % (item_hash,feed,account))
-                    # Actually post it here
+                    # TODO Actually post it here
                     self._spigotdb.mark_posted(item_hash)
   
        

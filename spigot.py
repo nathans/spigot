@@ -92,8 +92,8 @@ class SpigotDB():
         curs.close()
             
     def add_item(self, feed_name, link, title, item_hash, date):
-        """Add an item to the database with the given parameters. Return True if
-        successful."""
+        """Add an item to the database with the given parameters. Return True
+        if successful."""
         
         curs = self._db.cursor()
         curs.execute("insert into items(feed, link, title, hash, date) \
@@ -342,6 +342,7 @@ class SpigotPost():
         message = raw_format.replace("$t",title)
         message = message.replace("$l",link)
         logging.debug("  Posted message will be %s" % message)
+        # TODO Check for max length of dents here
         return message
 
 
@@ -364,7 +365,7 @@ class SpigotPost():
             unposted_items = self._spigotdb.get_unposted_items(feed)
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
-                    item = unposted_items.pop()
+                    item = unposted_items.pop(0)
                 except:
                     # Escape the loop if there are no new posts waiting
                     break

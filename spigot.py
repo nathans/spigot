@@ -29,7 +29,7 @@ from time import mktime
 import feedparser
 
 # import statusnet
-
+import krunchlib
 
 class SpigotDB():
     """
@@ -333,6 +333,9 @@ class SpigotPost():
 
     def _format_message(self, feed, link, title):
         """Return a string formatted according to the feed's configuration.
+        If the string is too long for the maximum post length for the server,
+        first attempt to shorten any included URL, and then truncate with an
+        ellipse.
         
         Replacement strings:
         $t : title
@@ -341,8 +344,41 @@ class SpigotPost():
         raw_format = self._spigotfeed.get_format(feed)
         message = raw_format.replace("$t",title)
         message = message.replace("$l",link)
-        logging.debug("  Posted message will be %s" % message)
         # TODO Check for max length of dents here
+        # TODO get maxlength from statusnet server via api
+        shortened_url = False
+        size = len(message)
+        # Allow 3 extra chars for '...'
+        trunc = (size - 140) + 3
+        logging.debug("  Length of message is %d chars" % size)
+        if size > 140:
+            logging.info("  Message is longer than max length for server.")
+        while len(message) > 140:
+            # First try to shorten the URL if included
+            if (not shortened_url) and ("$l" in raw_format):
+                # Get shortened URL for link
+                # Repackage message
+                krunch = krunchlib.Krunch("http://is.gd/api.php?longurl=")
+                try:
+                    shortened_url = krunch.krunch_url(link)
+                    logging.info("  Shortened URL")
+                    message = raw_format.replace("$t",title)
+                    message = message.replace("$l",shortened_url)
+                except:
+                    logging.warn("  Unable to shorten URL")
+                    # Do not try to shorten endlessly
+                    shortened_url = True
+            # Otherwise truncate the message using an ellipse
+            else:
+                logging.warn("  Truncating message.")
+
+                if "$t" in raw_format:
+                    new_title = title[:-trunc] + '...'
+                    message = raw_format.replace("$t",new_title)
+                    message = message.replace("$l",shortened_url)
+                else:
+                    message = message[:137] + '...'
+        logging.debug("  Posted message will be %s" % message)
         return message
 
 
@@ -352,10 +388,10 @@ class SpigotPost():
         """Handle the posting of unposted items.
         
         
-        Iterate over each pollable feed and check to see if it is permissible to
-        post new items based on interval configuration. Loop while it is OK, and 
-        terminate the loop when it becomes not OK. Presumably one or none will 
-        be posted each time this method runs."""
+        Iterate over each pollable feed and check to see if it is permissible
+        to post new items based on interval configuration. Loop while it is OK,
+        and terminate the loop when it becomes not OK. Presumably one or none 
+        will be posted each time this method runs."""
         
         feeds = self._spigotfeed.feeds_to_poll
         for feed, feed_url, account in feeds:

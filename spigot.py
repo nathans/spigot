@@ -122,7 +122,8 @@ class SpigotDB():
         if not date:
             date = datetime.now()
         curs = self._db.cursor()
-        curs.execute("UPDATE items SET posted=? WHERE hash=?",(date, item_hash))
+        curs.execute("UPDATE items SET posted=? WHERE hash=?",
+            (date, item_hash))
         logging.debug("  Updated posted time of item %s in database"
             % item_hash)
         curs.close()
@@ -313,7 +314,7 @@ class SpigotPost():
             return False
 
     def _check_duplicate(self, account, message, item_hash):
-        """Return True if the given content has been posted on the given
+       """Return True if the given content has been posted on the given
         statusnet account recently. Otherwise return False. Intended to prevent
         accidental duplicate posts."""
         
@@ -326,7 +327,7 @@ class SpigotPost():
                 # Update the posted time in the database
                 real_date = self._acct_parse.entries[i].date_parsed
                 date = datetime.fromtimestamp(mktime(real_date))
-                logging.warning("  Item %s has already been posted. Correcting."
+                logging.warn("  Item %s has already been posted. Correcting."
                     % item_hash)
                 self._spigotdb.mark_posted(item_hash, date)
         return duplicate
@@ -370,17 +371,20 @@ class SpigotPost():
                     shortened_url = True
             # Otherwise truncate the message using an ellipse
             else:
-                logging.warn("  Truncating message.")
-
+                # Try shortening the title
+                # Trying to avoid breaking the link, if possible
+                # This code is not very smart, hopefully people will not
+                # input stuff longer than their max server length :-(
                 if "$t" in raw_format:
+                    logging.info("  Truncating title")
                     new_title = title[:-trunc] + '...'
                     message = raw_format.replace("$t",new_title)
                     message = message.replace("$l",shortened_url)
                 else:
+                    logging.warn("  Truncating message - could break links!")
                     message = message[:137] + '...'
         logging.debug("  Posted message will be %s" % message)
         return message
-
 
     ### SpigotPost public methods
 
@@ -395,7 +399,10 @@ class SpigotPost():
         
         feeds = self._spigotfeed.feeds_to_poll
         for feed, feed_url, account in feeds:
-            # TODO Need to make sure the specified account is configured
+            if not self._accounts_config.has_section(account):
+                logging.error("Account %s not configured, unable to post." %
+                    account)
+                sys.exit(2)
             self._get_account_posts(account)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
@@ -426,8 +433,7 @@ if __name__ == "__main__":
     # Make this behavior configurable
     spigot_feed.poll_feeds()
     spigot_post = SpigotPost(spigot_db, spigot_feed)
-    
-    
+      
 # TODO
 # - Offering logging configuration?
 # - Authentication type

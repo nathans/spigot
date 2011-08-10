@@ -345,7 +345,6 @@ class SpigotPost():
         raw_format = self._spigotfeed.get_format(feed)
         message = raw_format.replace("$t",title)
         message = message.replace("$l",link)
-        # TODO Check for max length of dents here
         # TODO get maxlength from statusnet server via api
         shortened_url = False
         size = len(message)
@@ -358,7 +357,6 @@ class SpigotPost():
             # First try to shorten the URL if included
             if (not shortened_url) and ("$l" in raw_format):
                 # Get shortened URL for link
-                # Repackage message
                 krunch = krunchlib.Krunch("http://is.gd/api.php?longurl=")
                 try:
                     shortened_url = krunch.krunch_url(link)

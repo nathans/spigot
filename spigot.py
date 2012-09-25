@@ -2,7 +2,7 @@
 #
 # spigot is a rate limiter for aggregating syndicated content to StatusNet
 #
-# (c) 2011 by Nathan Smith <nathan@smithfam.info>
+# (c) 2011, 2012 by Nathan Smith <nathan@smithfam.info>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

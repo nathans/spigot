@@ -31,6 +31,222 @@ import feedparser
 # import statusnet
 import krunchlib
 
+class SpigotConfig():
+    """Provide a configuration interface for Spigot, keeping track of feeds
+    polled and accounts configured for posting.
+    """
+
+    def __init__(self):
+        logging.debug("Loading feeds.conf")
+        self._feeds_config = ConfigParser.RawConfigParser()
+        if not self._feeds_config.read("feeds.conf"):
+            logging.error("Could not parse feeds.conf")
+            sys.exit(2)
+
+    def get_feeds(self):
+        """Returns a list of syndicated feeds to check for new posts."""
+        
+        # Make feeds to poll an internal variable for this function
+        feeds_to_poll = []
+        feeds = self._feeds_config.sections()
+        feeds_num = len(feeds)
+        if feeds_num == 0:
+            logging.warning("No feeds found in feeds.conf")
+        else:
+            logging.info("Found %d feeds in feeds.conf" % feeds_num)
+        for feed in feeds:
+            logging.debug("Processing feed %s" % feed)
+            
+            # Ensure that the feed section has the needed attributes
+            # If not, treat as a non-fatal error, but warn the user
+            if ( self._feeds_config.has_option(feed, "url") &
+                     self._feeds_config.has_option(feed, "account") &
+                     self._feeds_config.has_option(feed, "interval") ):
+                url = self._feeds_config.get(feed, "url")
+                logging.debug("  URL: %s" % url)
+                account = self._feeds_config.get(feed, "account")
+                logging.debug("  Account: %s" % account)
+                logging.debug("  Interval: %s min" %
+                    self._feeds_config.get(feed, "interval"))
+                feeds_to_poll.append((feed, url, account))
+                logging.debug("  Added to list of feeds to poll")
+                
+            else:
+                logging.warning("  Missing necessary options, skipping")
+        return feeds_to_poll
+
+
+class SpigotConnect():
+
+###############################################################################
+# Below code adapted from Identicurse
+###############################################################################
+
+    def init_config(self, config):
+        config.config.load(os.path.join(self.path, "config.json"))
+        print msg['NoConfigFoundInfo'] % (config.config.filename)
+        print msg['IdenticurseSupportOAuthInfo']
+        use_oauth = raw_input("Use OAuth [Y/n]? ").upper()
+        if use_oauth == "":
+            use_oauth = "Y"
+        if use_oauth[0] == "Y":
+            config.config['use_oauth'] = True
+        else:
+            config.config['use_oauth'] = False
+        if not config.config['use_oauth']:
+            config.config['username'] = raw_input("Username: ")
+            config.config['password'] = getpass.getpass("Password: ")
+        api_path = raw_input("API path [%s]: " % (config.config['api_path']))
+        if api_path != "":
+            if len(api_path) < 7 or api_path[:7] != "http://" and\
+                    api_path[:8] != "https://":
+                api_path = "http://" + api_path
+            if len(api_path) >= 7 and api_path[:5] != "https":
+                https_api_path = "https" + api_path[4:]
+                response = raw_input(msg['NotUsingHTTPSInfo'] % (
+                        https_api_path)).upper()
+                if response == "":
+                    response = "Y"
+                if response[0] == "Y":
+                    api_path = https_api_path
+            config.config['api_path'] = api_path
+        update_interval = raw_input(msg['UpdateIntervalInput'] % (
+                config.config['update_interval']))
+        if update_interval != "":
+            try:
+                config.config['update_interval'] = int(update_interval)
+            except ValueError:
+                print msg['InvalidUpdateIntervalError'] % (
+                    config.config['update_interval'])
+        notice_limit = raw_input(msg['NumberNoticesInput'] % (
+                config.config['notice_limit']))
+        if notice_limit != "":
+            try:
+                config.config['notice_limit'] = int(notice_limit)
+            except ValueError:
+                print msg['InvalidNumberNoticesError'] % (
+                    config.config['notice_limit'])
+        # try:
+        if config.config['use_oauth']:
+            instance = helpers.domain_regex.findall(
+                config.config['api_path'])[0][2]
+            if not instance in oauth_consumer_keys:
+                print msg['NoLocallyConsumerKeysInfo']
+                req = urllib2.Request("http://identicurse.net/api_keys.json")
+                resp = urllib2.urlopen(req)
+                api_keys = json.loads(resp.read())
+                if not instance in api_keys['keys']:
+                    print msg["NoRemoteConsumerKeysInfor"]
+                    temp_conn = StatusNet(config.config['api_path'],
+                                          auth_type="oauth",
+                                          consumer_key="anonymous",
+                                          consumer_secret="anonymous",
+                                          save_oauth_credentials=\
+                                              config.store_oauth_keys)
+                    config.config["consumer_key"] = "anonymous"
+                    config.config["consumer_secret"] = "anonymous"
+                else:
+                    temp_conn = StatusNet(config.config['api_path'],
+                                          auth_type="oauth",
+                                          consumer_key=\
+                                              api_keys['keys'][instance],
+                                          consumer_secret=\
+                                              api_keys['secrets'][instance],
+                                          save_oauth_credentials=\
+                                              config.store_oauth_keys)
+                    config.config["consumer_key"] = api_keys['keys'][instance]
+                    config.config["consumer_secret"] =\
+                        api_keys['secrets'][instance]
+            else:
+                temp_conn = StatusNet(config.config['api_path'],\
+                                      auth_type="oauth",
+                                      consumer_key=\
+                                          oauth_consumer_keys[instance],
+                                      consumer_secret=\
+                                          oauth_consumer_secrets[instance],
+                                      save_oauth_credentials=\
+                                          config.store_oauth_keys)
+        else:
+            temp_conn = StatusNet(config.config['api_path'],
+                                  config.config['username'],
+                                  config.config['password'])
+        # except Exception, (errmsg):
+        #     sys.exit("Couldn't establish connection: %s" % (errmsg))
+        print msg["ConfigIsOKInfo"]
+        config.config.save()
+
+    def start_connection(self, config):
+        try:
+            if config.config["use_oauth"]:
+                instance = helpers.domain_regex.findall(
+                    config.config['api_path'])[0][2]
+                if "consumer_key" in config.config:
+                    self.conn = StatusNet(config.config['api_path'],
+                                          auth_type="oauth",
+                                          consumer_key=\
+                                              config.config["consumer_key"],
+                                          consumer_secret=\
+                                              config.config["consumer_secret"],
+                                          oauth_token=\
+                                              config.config["oauth_token"],
+                                          oauth_token_secret=\
+                                              config.config[\
+                                                  "oauth_token_secret"],
+                                          save_oauth_credentials=\
+                                              config.store_oauth_keys)
+                elif not instance in oauth_consumer_keys:
+                    print msg['NoLocallyConsumerKeysInfo']
+                    req = urllib2.Request(
+                        "http://identicurse.net/api_keys.json")
+                    resp = urllib2.urlopen(req)
+                    api_keys = json.loads(resp.read())
+                    if not instance in api_keys['keys']:
+                        sys.exit(msg['YourInstanceAPIKeysError'] % (locals()))
+                    else:
+                        self.conn = StatusNet(config.config['api_path'],
+                                              auth_type="oauth",
+                                              consumer_key=\
+                                                  api_keys['keys'][instance],
+                                              consumer_secret=\
+                                                 api_keys['secrets'][instance],
+                                              oauth_token=\
+                                                  config.config["oauth_token"],
+                                              oauth_token_secret=\
+                                                  config.config[\
+                                                      "oauth_token_secret"],
+                                              save_oauth_credentials=\
+                                                  config.store_oauth_keys)
+                        config.config["consumer_key"] =\
+                            api_keys['keys'][instance]
+                        config.config["consumer_secret"] =\
+                            api_keys['secrets'][instance]
+                        config.config.save()
+                else:
+                    self.conn = StatusNet(config.config['api_path'],
+                                          auth_type="oauth",
+                                          consumer_key=\
+                                              oauth_consumer_keys[instance],
+                                          consumer_secret=\
+                                              oauth_consumer_secrets[instance],
+                                          oauth_token=\
+                                              config.config["oauth_token"],
+                                          oauth_token_secret=\
+                                              config.config[\
+                                                  "oauth_token_secret"],
+                                          save_oauth_credentials=\
+                                              config.store_oauth_keys)
+            else:
+                self.conn = StatusNet(config.config['api_path'],
+                                      config.config['username'],
+                                      config.config['password'])
+        except Exception, (errmsg):
+            sys.exit("ERROR: Couldn't establish connection: %s" % (errmsg))
+
+
+###############################################################################
+# End code from identicurse
+###############################################################################
+
 class SpigotDB():
     """
     Handle database calls for Spigot
@@ -150,58 +366,19 @@ class SpigotDB():
 
 class SpigotFeeds():
     """
-    Handle the parsing of feeds.conf configuration file and polling the
-    specified feeds for new posts. Add new posts to database in preparation for
-    posting to the specified StatusNet accounts.
-
+    Handle the polling the specified feeds for new posts. Add new posts to 
+    database in preparation for posting to the specified StatusNet accounts.
     """
 
-    def __init__(self, db):
+    def __init__(self, db, config):
         self._spigotdb = db
-        logging.debug("Loading feeds.conf")
-        self._feeds_config = ConfigParser.RawConfigParser()
-        if not self._feeds_config.read("feeds.conf"):
-            logging.error("Could not parse feeds.conf")
-            sys.exit(2)
-        self.feeds_to_poll = []     
-
-    def parse_config(self):
-        """Returns a list of syndicated feeds to check for new posts."""
-        
-        # Make feeds to poll an internal variable for this function
-        feeds_to_poll = []
-        feeds = self._feeds_config.sections()
-        feeds_num = len(feeds)
-        if feeds_num == 0:
-            logging.warning("No feeds found in feeds.conf")
-        else:
-            logging.info("Found %d feeds in feeds.conf" % feeds_num)
-        for feed in feeds:
-            logging.debug("Processing feed %s" % feed)
-            
-            # Ensure that the feed section has the needed attributes
-            # If not, treat as a non-fatal error, but warn the user
-            if ( self._feeds_config.has_option(feed, "url") &
-                     self._feeds_config.has_option(feed, "account") &
-                     self._feeds_config.has_option(feed, "interval") ):
-                url = self._feeds_config.get(feed, "url")
-                logging.debug("  URL: %s" % url)
-                account = self._feeds_config.get(feed, "account")
-                logging.debug("  Account: %s" % account)
-                logging.debug("  Interval: %s min" %
-                    self._feeds_config.get(feed, "interval"))
-                feeds_to_poll.append((feed, url, account))
-                logging.debug("  Added to list of feeds to poll")
-                
-            else:
-                logging.warning("  Missing necessary options, skipping")
-        return feeds_to_poll
+        self._config = config
 
     def poll_feeds(self):
         """Check the configured feeds for new posts."""
         
-        self.feeds_to_poll = self.parse_config()
-        for feed, feed_url, account in self.feeds_to_poll:
+        feeds_to_poll = self._config.get_feeds()
+        for feed, feed_url, account in feeds_to_poll:
             self.scan_feed(feed, feed_url, account)
 
     def scan_feed(self, feed, feed_url, account):
@@ -288,8 +465,9 @@ class SpigotPost():
     statusnet account.
     """
     
-    def __init__(self, db, spigot_feed):
+    def __init__(self, db, spigot_config, spigot_feed):
         self._spigotdb = db
+        self._config = spigot_config
         self._spigotfeed = spigot_feed
         self._accounts_config = ConfigParser.RawConfigParser()
         if not self._accounts_config.read("accounts.conf"):
@@ -426,11 +604,12 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, \
                             format='%(asctime)s %(levelname)s: %(message)s')
     logging.debug("spigot startup")
+    spigot_config = SpigotConfig()
     spigot_db = SpigotDB()
-    spigot_feed = SpigotFeeds(spigot_db)
+    spigot_feed = SpigotFeeds(spigot_db, spigot_config)
     # Make this behavior configurable
     spigot_feed.poll_feeds()
-    spigot_post = SpigotPost(spigot_db, spigot_feed)
+    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed,)
       
 # TODO
 # - Offering logging configuration?

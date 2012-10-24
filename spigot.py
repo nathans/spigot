@@ -17,31 +17,40 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
-import ConfigParser
+# Standard library imports
 from datetime import datetime, timedelta
 import hashlib
+try:
+    import json
+except ImportError:
+    import simplejson as json
 import logging
 import os
 import sqlite3
 import sys
 from time import mktime
 
+# 3rd-party modules
 import feedparser
-
 # import statusnet
-import krunchlib
 
-class SpigotConfig():
-    """Provide a configuration interface for Spigot, keeping track of feeds
-    polled and accounts configured for posting.
+class SpigotConfig(dict):
+    """Extends the built-in dict type to provide a configuration interface 
+    for Spigot, keeping track of feeds polled and accounts configured for 
+    posting.
     """
 
     def __init__(self):
-        logging.debug("Loading feeds.conf")
         self._feeds_config = ConfigParser.RawConfigParser()
         if not self._feeds_config.read("feeds.conf"):
             logging.error("Could not parse feeds.conf")
             sys.exit(2)
+
+    def load(self):
+        """Load the spigot0 json config file from the user's home directory
+        and import it into the SpigotConfig dict object."""
+
+        logging.debug("Loading ~/.spigot0")
 
     def get_feeds(self):
         """Returns a list of syndicated feeds to check for new posts."""

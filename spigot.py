@@ -429,7 +429,7 @@ class SpigotFeeds():
             logging.debug("    Title: %s" % title)
             link = p.entries[i].link
             logging.debug("    Link: %s" % link)
-            date = p.entries[i].date_parsed
+            date = p.entries[i].published_parsed
             date_struct = datetime.fromtimestamp(mktime(date))
             logging.debug("    Date: %s" % datetime.isoformat(date_struct))
             # Create a md5 hash of title and link, so that we can
@@ -450,21 +450,11 @@ class SpigotFeeds():
                 logging.debug("    Already in database")
         logging.info("Found %d new items in feed %s" % (new_items, feed_url))
 
-    def get_format(self, feed):
-        """Returns the format string from feeds.conf for the given feed."""
-        
-        return self._feeds_config.get(feed, "format")
-        
-    def get_feed_interval(self, feed):
-        """Return the interval from feeds.conf of the specified feed."""
-        
-        return self._feeds_config.get(feed, "interval")
-        
     def feed_ok_to_post(self, feed):
         """Return True if the given feed is OK to post given its configured
         interval."""
         
-        interval = int(self.get_feed_interval(feed))
+        interval = int(self._config["feeds"][feed]["interval"])
         delta = timedelta(minutes=interval)
         posted = self._spigotdb.get_latest_post(feed)
         if posted:
@@ -493,10 +483,6 @@ class SpigotPost():
         self._spigotdb = db
         self._config = spigot_config
         self._spigotfeed = spigot_feed
-        self._accounts_config = ConfigParser.RawConfigParser()
-        if not self._accounts_config.read("accounts.conf"):
-            logging.error("Could not parse accounts.conf")
-            sys.exit(2)
         self.post_items()
 
     ### SpigotPost private methods
@@ -505,10 +491,7 @@ class SpigotPost():
         """Pares the recent posts of the specified account for duplicate
         checking."""
         
-        service = self._accounts_config.get(account, "service")
-        username = self._accounts_config.get(account, "username")
-        
-        feed_url = "%s/%s/rss" % (service, username)
+        feed_url = "%s/rss" % account
         try:
             self._acct_parse = feedparser.parse(feed_url)
         except:
@@ -545,7 +528,7 @@ class SpigotPost():
         $t : title
         $l : link"""
         
-        raw_format = self._spigotfeed.get_format(feed)
+        raw_format = self._config["feeds"][feed]["format"]
         message = raw_format.replace("$t",title)
         message = message.replace("$l",link)
         # TODO get maxlength from statusnet server via api
@@ -598,9 +581,9 @@ class SpigotPost():
         and terminate the loop when it becomes not OK. Presumably one or none 
         will be posted each time this method runs."""
         
-        feeds = self._spigotfeed.feeds_to_poll
+        feeds = self._config.get_feeds()
         for feed, feed_url, account in feeds:
-            if not self._accounts_config.has_section(account):
+            if not account in self._config["accounts"]:
                 logging.error("Account %s not configured, unable to post." %
                     account)
                 sys.exit(2)
@@ -630,11 +613,12 @@ if __name__ == "__main__":
                             format='%(asctime)s %(levelname)s: %(message)s')
     logging.debug("spigot startup")
     spigot_config = SpigotConfig()
+    spigot_config.load()
     spigot_db = SpigotDB()
     spigot_feed = SpigotFeeds(spigot_db, spigot_config)
     # Make this behavior configurable
     spigot_feed.poll_feeds()
-    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed,)
+    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)
       
 # TODO
 # - Offering logging configuration?

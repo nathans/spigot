@@ -40,43 +40,58 @@ class SpigotConfig(dict):
     posting.
     """
 
+    # See identicurse's config.py for the inspiration for this model
+    config_file = "spigot.json"
+
     def __init__(self):
-        self._feeds_config = ConfigParser.RawConfigParser()
-        if not self._feeds_config.read("feeds.conf"):
-            logging.error("Could not parse feeds.conf")
-            sys.exit(2)
+        pass
 
     def load(self):
         """Load the spigot0 json config file from the user's home directory
         and import it into the SpigotConfig dict object."""
 
-        logging.debug("Loading ~/.spigot0")
+        logging.debug("Loading spigot.json")
+        # Start with a clean configuration object
+        self.clear()
+        try:
+            self.update(json.loads(open(self.config_file, "r").read()))
+        except IOError:
+            logging.error("Could not load configuration file")
+            sys.exit(2)
+
+    def save(self):
+        "Convert the state of the SpigotConfig dict to json and save."
+
+        logging.debug("Saving spigot.json")
+        try:
+            open(self.config_file, "w").write(json.dumps(self, indent=4))
+        except IOError:
+            logging.error("Could not save configuration file")
 
     def get_feeds(self):
         """Returns a list of syndicated feeds to check for new posts."""
         
         # Make feeds to poll an internal variable for this function
+        feeds = self["feeds"]
         feeds_to_poll = []
-        feeds = self._feeds_config.sections()
         feeds_num = len(feeds)
         if feeds_num == 0:
             logging.warning("No feeds found in feeds.conf")
         else:
             logging.info("Found %d feeds in feeds.conf" % feeds_num)
-        for feed in feeds:
-            logging.debug("Processing feed %s" % feed)
-            
+        for feed in feeds.keys():
             # Ensure that the feed section has the needed attributes
             # If not, treat as a non-fatal error, but warn the user
-            if ( self._feeds_config.has_option(feed, "url") &
-                     self._feeds_config.has_option(feed, "account") &
-                     self._feeds_config.has_option(feed, "interval") ):
-                url = self._feeds_config.get(feed, "url")
+            if ( ( "url" in feeds[feed] ) & 
+                 ( "account" in feeds[feed] ) & 
+                 ( "interval" in feeds[feed] ) ):
+                url = feeds[feed]["url"]
+                logging.debug("Processing feed %s" % feed)
                 logging.debug("  URL: %s" % url)
-                account = self._feeds_config.get(feed, "account")
+                account = feeds[feed]["account"]
                 logging.debug("  Account: %s" % account)
-                logging.debug("  Interval: %s min" %
-                    self._feeds_config.get(feed, "interval"))
+                interval = feeds[feed]["interval"]
+                logging.debug("  Interval: %s min" % interval)
                 feeds_to_poll.append((feed, url, account))
                 logging.debug("  Added to list of feeds to poll")
                 
@@ -501,23 +516,24 @@ class SpigotPost():
             return False
 
     def _check_duplicate(self, account, message, item_hash):
+
        """Return True if the given content has been posted on the given
-        statusnet account recently. Otherwise return False. Intended to prevent
-        accidental duplicate posts."""
-        
-        username = self._accounts_config.get(account, "username")
-        formatted_message = "%s: %s" % (username, message)
-        duplicate = False
-        for i in range(len(self._acct_parse.entries)):
-            if formatted_message == self._acct_parse.entries[i].title:
-                duplicate = True
-                # Update the posted time in the database
-                real_date = self._acct_parse.entries[i].date_parsed
-                date = datetime.fromtimestamp(mktime(real_date))
-                logging.warn("  Item %s has already been posted. Correcting."
-                    % item_hash)
-                self._spigotdb.mark_posted(item_hash, date)
-        return duplicate
+       statusnet account recently. Otherwise return False. Intended to prevent
+       accidental duplicate posts."""
+
+       username = self._accounts_config.get(account, "username")
+       formatted_message = "%s: %s" % (username, message)
+       duplicate = False
+       for i in range(len(self._acct_parse.entries)):
+           if formatted_message == self._acct_parse.entries[i].title:
+               duplicate = True
+               # Update the posted time in the database
+               real_date = self._acct_parse.entries[i].date_parsed
+               date = datetime.fromtimestamp(mktime(real_date))
+               logging.warn("  Item %s has already been posted. Correcting."
+                   % item_hash)
+               self._spigotdb.mark_posted(item_hash, date)
+       return duplicate
 
     def _format_message(self, feed, link, title):
         """Return a string formatted according to the feed's configuration.

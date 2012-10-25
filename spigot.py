@@ -559,7 +559,7 @@ class SpigotPost():
                     message = raw_format.replace("$t",title)
                     message = message.replace("$l",shortened_url)
                 except:
-                    logging.warn("  Unable to shorten URL")
+                    logging.warning("  Unable to shorten URL")
                     # Do not try to shorten endlessly
                     shortened_url = True
             # Otherwise truncate the message using an ellipse
@@ -574,7 +574,7 @@ class SpigotPost():
                     message = raw_format.replace("$t",new_title)
                     message = message.replace("$l",shortened_url)
                 else:
-                    logging.warn("  Truncating message - could break links!")
+                    logging.warning("  Truncating message - could break links")
                     message = message[:137] + '...'
         logging.debug("  Posted message will be %s" % message)
         return message
@@ -592,7 +592,7 @@ class SpigotPost():
         
         for feed, account, interval, form in self._config.feeds:
             if not account in self._config["accounts"]:
-                logging.exception("Account %s not configured, unable to post." 
+                logging.error("Account %s not configured, unable to post." 
                                   % account)
                 sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)

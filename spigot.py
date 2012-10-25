@@ -488,17 +488,18 @@ class SpigotPost():
     ### SpigotPost private methods
 
     def _get_account_posts(self, account):
-        """Pares the recent posts of the specified account for duplicate
-        checking."""
-        
-        feed_url = "%s/rss" % account
-        try:
-            return feedparser.parse(feed_url)
-        except:
-            logging.warning("  Unable to parse account feed %s" % feed_url)
-            return False
+        """Return a feedparser object of the account's feed or false if 
+        unparseable."""
 
-    def _check_duplicate(self, account, message, item_hash):
+       feed_url = "%s/rss" % account
+       try:
+           return feedparser.parse(feed_url)
+       except:
+           logging.warning("  Could not parse account feed %s" % feed_url)
+           return False
+
+
+    def _check_duplicate(self, posts, message, item_hash):
 
        """Return True if the given content has been posted on the given
        statusnet account recently. Otherwise return False. Intended to prevent
@@ -508,19 +509,22 @@ class SpigotPost():
        # wanting to have user specify username in config files
        username = self._accounts_config.get(account, "username")
        formatted_message = "%s: %s" % (username, message)
-       duplicate = False
-       # TODO this and the above function are very wrong. Appear to be sharing
-       # class variable for ephemeral data :-(
-       for i in range(len(self._acct_parse.entries)):
-           if formatted_message == self._acct_parse.entries[i].title:
-               duplicate = True
-               # Update the posted time in the database
-               real_date = self._acct_parse.entries[i].date_parsed
-               date = datetime.fromtimestamp(mktime(real_date))
-               logging.warn("  Item %s has already been posted. Correcting."
-                   % item_hash)
-               self._spigotdb.mark_posted(item_hash, date)
-       return duplicate
+
+       try:
+           for i in range(len(posts.entries)):
+               if formatted_message == posts.entries[i].title:
+                   # Update the posted time in the database
+                   real_date = feeds.entries[i].date_parsed
+                   date = datetime.fromtimestamp(mktime(real_date))
+                   logging.warn("  Item %s has already been posted. Correcting."
+                                % item_hash)
+                   self._spigotdb.mark_posted(item_hash, date)
+                   return True
+           return false
+       except TypeError:
+           logging.warning("  Could not check account %s for duplicates to \
+               item %s" % (account,item_hash))
+           return false
 
     def _format_message(self, feed, link, title):
         """Return a string formatted according to the feed's configuration.
@@ -604,7 +608,8 @@ class SpigotPost():
                 item_hash = item[3]
                 message = self._format_message(feed, link, title)
                 # Make sure that it has not been posted recently
-                if not self._check_duplicate(account, message, item_hash):
+                user_posts = self._get_account_posts(account)
+                if not self._check_duplicate(user_posts, message, item_hash):
                     logging.info("  Posting item %s from %s feed to account %s"
                         % (item_hash,feed,account))
                     # TODO Actually post it here

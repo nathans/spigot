@@ -41,39 +41,42 @@ class SpigotConfig(dict):
     """
 
     # See identicurse's config.py for the inspiration for this model
-    config_file = "spigot.json"
 
-    def __init__(self):
-        pass
+    def __init__(self, path="spigot.json"):
+        self.config_file = path
 
     def load(self):
         """Load the spigot0 json config file from the user's home directory
         and import it into the SpigotConfig dict object."""
 
-        logging.debug("Loading spigot.json")
+        logging.debug("Loading %s" % self.config_file)
         # Start with a clean configuration object
         self.clear()
         try:
+            # Validate here
             self.update(json.loads(open(self.config_file, "r").read()))
         except IOError:
             logging.error("Could not load configuration file")
             sys.exit(2)
 
-        self.feeds = self._get_feeds()
+        self._get_feeds()
 
     def save(self):
         "Convert the state of the SpigotConfig dict to json and save."
 
         logging.debug("Saving spigot.json")
         try:
+            # Validate here
             open(self.config_file, "w").write(json.dumps(self, indent=4))
         except IOError:
-            logging.error("Could not save configuration file")
+            logging.exception("Could not save configuration file")
+            sys.exit(2)
 
     def _validate_config(self):
         """Returns True if the json configuration file contains the minimum
         necessary elements for operation in a proper format."""
 
+        # TODO Write this
         pass
 
     def _get_feeds(self):
@@ -81,14 +84,10 @@ class SpigotConfig(dict):
         Formatted in a tuple in the form of (url, account, interval, format)
         """
         
-        # Make feeds to poll an internal variable for this function
         feeds = self["feeds"]
         feeds_to_poll = []
         feeds_num = len(feeds)
-        if feeds_num == 0:
-            logging.warning("No feeds found in feeds.conf")
-        else:
-            logging.info("Found %d feeds in feeds.conf" % feeds_num)
+        logging.debug("Found %d feeds in configuration" % feeds_num)
         for url in feeds.keys():
             logging.debug("Processing feed %s" % url)
             account = feeds[url]["account"]
@@ -99,7 +98,7 @@ class SpigotConfig(dict):
             logging.debug("  Format: %s" % form)
             feeds_to_poll.append((url, account, interval, form))
             logging.debug("  Added to list of feeds to poll")
-        return feeds_to_poll
+        self.feeds = feeds_to_poll
 
 
 class SpigotConnect():
@@ -291,7 +290,7 @@ class SpigotDB():
         new_db = False
         if not os.path.exists(self.path):
             new_db = True
-            logging.info("Database file %s does not exist" % self.path)
+            logging.debug("Database file %s does not exist" % self.path)
         try:
             self._db = sqlite3.connect(self.path,
                 detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -311,7 +310,7 @@ class SpigotDB():
             hash text, date timestamp, posted timestamp)"""
         curs.execute(create_query)
         self._db.commit()
-        logging.info("Initialized database tables")
+        logging.debug("Initialized database tables")
         curs.close()
         
         ### SpigotDB public methods
@@ -354,7 +353,7 @@ class SpigotDB():
             ORDER BY date ASC",[feed])
         unposted_items = curs.fetchall()
         num_items = len(unposted_items)
-        logging.info("  Found %d unposted items in feed %s" % (num_items,feed))
+        logging.debug("  Found %d unposted items in %s" % (num_items,feed))
         curs.close()
         return unposted_items
 
@@ -450,7 +449,7 @@ class SpigotFeeds():
                 new_items += 1
             else:
                 logging.debug("    Already in database")
-        logging.info("Found %d new items in feed %s" % (new_items, url))
+        logging.debug("Found %d new items in feed %s" % (new_items, url))
 
     def feed_ok_to_post(self, feed):
         """Return True if the given feed is OK to post given its configured
@@ -464,14 +463,15 @@ class SpigotFeeds():
             now = datetime.now()
             if now >= next:
                 #post it                
-                logging.info("  Feed %s is ready for a new post" % feed)
+                logging.debug("  Feed %s is ready for a new post" % feed)
                 return True
             else:
-                logging.info("  Feed %s has been posted too recently" % feed)
-                logging.info("  Next post at %s" % next.isoformat())
+                logging.debug("  Feed %s has been posted too recently" % feed)
+                logging.debug("  Next post at %s" % next.isoformat())
                 return False
         else:
             # Nothing has been posted for this feed, so it is OK to post
+            logging.debug("  Feed %s is ready for a new post" % feed)
             return True
         
 
@@ -506,9 +506,10 @@ class SpigotPost():
        statusnet account recently. Otherwise return False. Intended to prevent
        accidental duplicate posts."""
 
-       # TODO Maybe need to use regexp matching to find these posts, due to not
-       # wanting to have user specify username in config files
-       username = self._accounts_config.get(account, "username")
+       # Infer the username based on the text before ":" in the title element
+       # of the first post in the feed. This should probably be done with an 
+       # API call if possible.
+       username = posts.entries[0].title.split(":")[0]
        formatted_message = "%s: %s" % (username, message)
 
        try:
@@ -517,11 +518,11 @@ class SpigotPost():
                    # Update the posted time in the database
                    real_date = feeds.entries[i].date_parsed
                    date = datetime.fromtimestamp(mktime(real_date))
-                   logging.warn("  Item %s has already been posted. Correcting."
+                   logging.debug("  Item %s already been posted. Correcting."
                                 % item_hash)
                    self._spigotdb.mark_posted(item_hash, date)
                    return True
-           return false
+           return False
        except TypeError:
            logging.warning("  Could not check account %s for duplicates to \
                item %s" % (account,item_hash))
@@ -546,7 +547,7 @@ class SpigotPost():
         trunc = (size - 140) + 3
         logging.debug("  Length of message is %d chars" % size)
         if size > 140:
-            logging.info("  Message is longer than max length for server.")
+            logging.warning("  Message is longer than max length for server.")
         while len(message) > 140:
             # First try to shorten the URL if included
             if (not shortened_url) and ("$l" in raw_format):
@@ -554,7 +555,7 @@ class SpigotPost():
                 krunch = krunchlib.Krunch("http://is.gd/api.php?longurl=")
                 try:
                     shortened_url = krunch.krunch_url(link)
-                    logging.info("  Shortened URL")
+                    logging.debug("  Shortened URL")
                     message = raw_format.replace("$t",title)
                     message = message.replace("$l",shortened_url)
                 except:
@@ -568,7 +569,7 @@ class SpigotPost():
                 # This code is not very smart, hopefully people will not
                 # input stuff longer than their max server length :-(
                 if "$t" in raw_format:
-                    logging.info("  Truncating title")
+                    logging.debug("  Truncating title")
                     new_title = title[:-trunc] + '...'
                     message = raw_format.replace("$t",new_title)
                     message = message.replace("$l",shortened_url)
@@ -591,8 +592,8 @@ class SpigotPost():
         
         for feed, account, interval, form in self._config.feeds:
             if not account in self._config["accounts"]:
-                logging.error("Account %s not configured, unable to post." %
-                    account)
+                logging.exception("Account %s not configured, unable to post." 
+                                  % account)
                 sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
@@ -608,13 +609,14 @@ class SpigotPost():
                 message = self._format_message(feed, link, title, form)
                 # Make sure that it has not been posted recently
                 user_posts = self._get_account_posts(account)
+                logging.debug("  Evaluating item %s for posting." % item_hash)
                 if not self._check_duplicate(user_posts, message, item_hash):
-                    logging.info("  Posting item %s from %s feed to account %s"
+                    logging.info("  Posting item %s from %s to account %s"
                         % (item_hash,feed,account))
                     # TODO Actually post it here
                     self._spigotdb.mark_posted(item_hash)
-  
-       
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, \
                             format='%(asctime)s %(levelname)s: %(message)s')
@@ -630,4 +632,3 @@ if __name__ == "__main__":
 # TODO
 # - Offering logging configuration?
 # - Authentication type
-# - statusbot v. identicurse bindings to statusnet

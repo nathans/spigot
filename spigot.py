@@ -493,7 +493,7 @@ class SpigotPost():
         
         feed_url = "%s/rss" % account
         try:
-            self._acct_parse = feedparser.parse(feed_url)
+            return feedparser.parse(feed_url)
         except:
             logging.warning("  Unable to parse account feed %s" % feed_url)
             return False
@@ -504,9 +504,13 @@ class SpigotPost():
        statusnet account recently. Otherwise return False. Intended to prevent
        accidental duplicate posts."""
 
+       # TODO Maybe need to use regexp matching to find these posts, due to not
+       # wanting to have user specify username in config files
        username = self._accounts_config.get(account, "username")
        formatted_message = "%s: %s" % (username, message)
        duplicate = False
+       # TODO this and the above function are very wrong. Appear to be sharing
+       # class variable for ephemeral data :-(
        for i in range(len(self._acct_parse.entries)):
            if formatted_message == self._acct_parse.entries[i].title:
                duplicate = True
@@ -587,7 +591,6 @@ class SpigotPost():
                 logging.error("Account %s not configured, unable to post." %
                     account)
                 sys.exit(2)
-            self._get_account_posts(account)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
             while self._spigotfeed.feed_ok_to_post(feed):

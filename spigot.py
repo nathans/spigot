@@ -19,6 +19,7 @@
 
 # Standard library imports
 from datetime import datetime, timedelta
+import feedparser
 import hashlib
 try:
     import json
@@ -30,8 +31,7 @@ import sqlite3
 import sys
 from time import mktime
 
-# 3rd-party modules
-import feedparser
+# Bundled modules
 # import statusnet
 
 class SpigotConfig(dict):
@@ -59,6 +59,8 @@ class SpigotConfig(dict):
             logging.error("Could not load configuration file")
             sys.exit(2)
 
+        self.feeds = self._get_feeds()
+
     def save(self):
         "Convert the state of the SpigotConfig dict to json and save."
 
@@ -68,8 +70,16 @@ class SpigotConfig(dict):
         except IOError:
             logging.error("Could not save configuration file")
 
-    def get_feeds(self):
-        """Returns a list of syndicated feeds to check for new posts."""
+    def _validate_config(self):
+        """Returns True if the json configuration file contains the minimum
+        necessary elements for operation in a proper format."""
+
+        pass
+
+    def _get_feeds(self):
+        """Sets instance variable 'feeds' of feeds to check for new posts.
+        Formatted in a tuple in the form of (url, account, interval, format)
+        """
         
         # Make feeds to poll an internal variable for this function
         feeds = self["feeds"]
@@ -80,20 +90,15 @@ class SpigotConfig(dict):
         else:
             logging.info("Found %d feeds in feeds.conf" % feeds_num)
         for url in feeds.keys():
-            # Ensure that the feed section has the needed attributes
-            # If not, treat as a non-fatal error, but warn the user
-            if ( ( "account" in feeds[url] ) & 
-                 ( "interval" in feeds[url] ) ):
-                logging.debug("Processing feed %s" % url)
-                account = feeds[url]["account"]
-                logging.debug("  Account: %s" % account)
-                interval = feeds[url]["interval"]
-                logging.debug("  Interval: %s min" % interval)
-                feeds_to_poll.append((url, account, interval))
-                logging.debug("  Added to list of feeds to poll")
-                
-            else:
-                logging.warning("  Missing necessary options, skipping")
+            logging.debug("Processing feed %s" % url)
+            account = feeds[url]["account"]
+            logging.debug("  Account: %s" % account)
+            interval = feeds[url]["interval"]
+            logging.debug("  Interval: %s min" % interval)
+            form = feeds[url]["format"]
+            logging.debug("  Format: %s" % form)
+            feeds_to_poll.append((url, account, interval, form))
+            logging.debug("  Added to list of feeds to poll")
         return feeds_to_poll
 
 
@@ -328,13 +333,13 @@ class SpigotDB():
             return False
         curs.close()
             
-    def add_item(self, feed_name, link, title, item_hash, date):
+    def add_item(self, feed_url, link, title, item_hash, date):
         """Add an item to the database with the given parameters. Return True
         if successful."""
         
         curs = self._db.cursor()
         curs.execute("insert into items(feed, link, title, hash, date) \
-            values (?, ?, ?, ?, ?)", (feed_name, link, title, item_hash, date))
+            values (?, ?, ?, ?, ?)", (feed_url, link, title, item_hash, date))
         logging.debug("    Added item %s to database" % item_hash)
         curs.close()
         
@@ -383,7 +388,7 @@ class SpigotDB():
         else:
             logging.debug("  No items from feed %s have been posted" % feed)
             return None
-        
+
 
 class SpigotFeeds():
     """
@@ -398,8 +403,8 @@ class SpigotFeeds():
     def poll_feeds(self):
         """Check the configured feeds for new posts."""
         
-        feeds_to_poll = self._config.get_feeds()
-        for url, account, interval in feeds_to_poll:
+        feeds_to_poll = self._config.feeds
+        for url, account, interval, form in feeds_to_poll:
             self.scan_feed(url)
 
     def scan_feed(self, url):
@@ -522,7 +527,7 @@ class SpigotPost():
                item %s" % (account,item_hash))
            return false
 
-    def _format_message(self, feed, link, title):
+    def _format_message(self, feed, link, title, form):
         """Return a string formatted according to the feed's configuration.
         If the string is too long for the maximum post length for the server,
         first attempt to shorten any included URL, and then truncate with an
@@ -532,8 +537,7 @@ class SpigotPost():
         $t : title
         $l : link"""
         
-        raw_format = self._config["feeds"][feed]["format"]
-        message = raw_format.replace("$t",title)
+        message = form.replace("$t",title)
         message = message.replace("$l",link)
         # TODO get maxlength from statusnet server via api
         shortened_url = False
@@ -585,8 +589,7 @@ class SpigotPost():
         and terminate the loop when it becomes not OK. Presumably one or none 
         will be posted each time this method runs."""
         
-        feeds = self._config.get_feeds()
-        for feed, account, interval in feeds:
+        for feed, account, interval, form in self._config.feeds:
             if not account in self._config["accounts"]:
                 logging.error("Account %s not configured, unable to post." %
                     account)
@@ -602,7 +605,7 @@ class SpigotPost():
                 link = item[1]
                 title = item[2]
                 item_hash = item[3]
-                message = self._format_message(feed, link, title)
+                message = self._format_message(feed, link, title, form)
                 # Make sure that it has not been posted recently
                 user_posts = self._get_account_posts(account)
                 if not self._check_duplicate(user_posts, message, item_hash):

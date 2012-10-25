@@ -79,20 +79,17 @@ class SpigotConfig(dict):
             logging.warning("No feeds found in feeds.conf")
         else:
             logging.info("Found %d feeds in feeds.conf" % feeds_num)
-        for feed in feeds.keys():
+        for url in feeds.keys():
             # Ensure that the feed section has the needed attributes
             # If not, treat as a non-fatal error, but warn the user
-            if ( ( "url" in feeds[feed] ) & 
-                 ( "account" in feeds[feed] ) & 
-                 ( "interval" in feeds[feed] ) ):
-                url = feeds[feed]["url"]
-                logging.debug("Processing feed %s" % feed)
-                logging.debug("  URL: %s" % url)
-                account = feeds[feed]["account"]
+            if ( ( "account" in feeds[url] ) & 
+                 ( "interval" in feeds[url] ) ):
+                logging.debug("Processing feed %s" % url)
+                account = feeds[url]["account"]
                 logging.debug("  Account: %s" % account)
-                interval = feeds[feed]["interval"]
+                interval = feeds[url]["interval"]
                 logging.debug("  Interval: %s min" % interval)
-                feeds_to_poll.append((feed, url, account))
+                feeds_to_poll.append((url, account, interval))
                 logging.debug("  Added to list of feeds to poll")
                 
             else:
@@ -402,23 +399,23 @@ class SpigotFeeds():
         """Check the configured feeds for new posts."""
         
         feeds_to_poll = self._config.get_feeds()
-        for feed, feed_url, account in feeds_to_poll:
-            self.scan_feed(feed, feed_url, account)
+        for url, account, interval in feeds_to_poll:
+            self.scan_feed(url)
 
-    def scan_feed(self, feed, feed_url, account):
+    def scan_feed(self, url):
         """Poll the given feed and then update the database with new info"""
 
-        logging.debug("Polling feed %s for new items" % feed_url)
+        logging.debug("Polling feed %s for new items" % url)
         # Allow for parsing of this feed to fail without raising an exception
         
         try:
-            p = feedparser.parse(feed_url)
+            p = feedparser.parse(url)
         except:
-            logging.error("Unable to parse feed %s" % feed_url)
+            logging.error("Unable to parse feed %s" % url)
             return None
         # Get a list of items for the feed and compare it to the database
         num_items = len(p.entries)
-        logging.debug("Found %d items in feed %s" % (num_items,feed_url))
+        logging.debug("Found %d items in feed %s" % (num_items,url))
         # Find out which encoding the feed uses to avoid problems with hashlib
         # below
         enc = p.encoding
@@ -443,12 +440,12 @@ class SpigotFeeds():
             # Check to see if item has already entered the database
             if not self._spigotdb.check_hash(item_hash):
                 logging.debug("    Not in database")
-                self._spigotdb.add_item(feed, link, title, item_hash,
+                self._spigotdb.add_item(url, link, title, item_hash,
                     date_struct)
                 new_items += 1
             else:
                 logging.debug("    Already in database")
-        logging.info("Found %d new items in feed %s" % (new_items, feed_url))
+        logging.info("Found %d new items in feed %s" % (new_items, url))
 
     def feed_ok_to_post(self, feed):
         """Return True if the given feed is OK to post given its configured
@@ -491,13 +488,12 @@ class SpigotPost():
         """Return a feedparser object of the account's feed or false if 
         unparseable."""
 
-       feed_url = "%s/rss" % account
-       try:
-           return feedparser.parse(feed_url)
-       except:
-           logging.warning("  Could not parse account feed %s" % feed_url)
-           return False
-
+        feed_url = "%s/rss" % account
+        try:
+            return feedparser.parse(feed_url)
+        except:
+            logging.warning("  Could not parse account feed %s" % feed_url)
+            return False
 
     def _check_duplicate(self, posts, message, item_hash):
 
@@ -590,7 +586,7 @@ class SpigotPost():
         will be posted each time this method runs."""
         
         feeds = self._config.get_feeds()
-        for feed, feed_url, account in feeds:
+        for feed, account, interval in feeds:
             if not account in self._config["accounts"]:
                 logging.error("Account %s not configured, unable to post." %
                     account)

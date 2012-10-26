@@ -33,7 +33,7 @@ from time import mktime
 import urllib
 
 # Bundled modules
-# import statusnet
+import statusnet
 
 class SpigotConfig(dict):
     """Extends the built-in dict type to provide a configuration interface 
@@ -73,6 +73,46 @@ class SpigotConfig(dict):
             logging.exception("Could not save configuration file")
             sys.exit(2)
 
+    def add_user(self):
+        """Interactively add a new user to the configuration."""
+
+        # Adapted from Identicurse - http://b1t.it/cjLm
+        self.load()
+
+        # Authorization type: OAuth or U/P
+        use_oauth = raw_input("Use OAuth [Y/n]? ").upper()
+        if use_oauth == "":
+            use_oauth = "Y"
+        if use_oauth[0] == "Y":
+            auth_type = "oauth"
+        else:
+            auth_type = "userpass"
+        
+        # Set up userpass method
+        if auth_type == "userpass":
+            username = raw_input("Username: ")
+            password = raw_input("Password: ")
+
+        api_path = raw_input("API path [https://identi.ca/api]: ")
+        if api_path != "":
+            if len(api_path) < 7 or api_path[:7] != "http://" and\
+                    api_path[:8] != "https://":
+                api_path = "http://" + api_path
+            if len(api_path) >= 7 and api_path[:5] != "https":
+                https_api_path = "https" + api_path[4:]
+                response = raw_input("Use HTTPS instead? [Y/n]").upper()
+                if response == "":
+                    response = "Y"
+                if response[0] == "Y":
+                    api_path = https_api_path
+            config.config['api_path'] = api_path
+        else:
+            api_path = "https://identi.ca/api"
+
+        self.save()
+
+    # SpigotConfig private methods below
+
     def _validate_config(self):
         """Returns True if the json configuration file contains the minimum
         necessary elements for operation in a proper format."""
@@ -111,7 +151,6 @@ class SpigotConnect():
     def init_config(self, config):
         config.config.load(os.path.join(self.path, "config.json"))
         print msg['NoConfigFoundInfo'] % (config.config.filename)
-        print msg['IdenticurseSupportOAuthInfo']
         use_oauth = raw_input("Use OAuth [Y/n]? ").upper()
         if use_oauth == "":
             use_oauth = "Y"
@@ -486,7 +525,6 @@ class SpigotPost():
         self._spigotdb = db
         self._config = spigot_config
         self._spigotfeed = spigot_feed
-        self.post_items()
 
     ### SpigotPost private methods
 
@@ -547,6 +585,8 @@ class SpigotPost():
             return url
         if result.has_key("url"):
             short_url = result["url"]
+            logging.debug("  Retrieved shortened url %s for %s" % 
+                          (short_url, url))
             return short_url
         else:
             logging.error("  Could not get short url for %s" % url)
@@ -577,11 +617,11 @@ class SpigotPost():
         while len(message) > limit:
             # First try to shorten the URL if included
             if (not shortened_url) and ("$l" in form):
-                # Get shortened URL for link
-                    shortened_url = self._shorten_url(link)
-                    message = form.replace("$t",title)
-                    message = message.replace("$l",shortened_url)
-                    shortened_url = True
+                logging.debug("  Attempting to shorten URL in post")
+                shortened_url = self._shorten_url(link)
+                message = form.replace("$t",title)
+                message = message.replace("$l",shortened_url)
+                shortened_url = True
             # Otherwise truncate the message using an ellipse
             else:
                 # Try shortening the title
@@ -617,6 +657,8 @@ class SpigotPost():
                 sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
+            # Initialize Statusnet connection here
+            
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
                     item = unposted_items.pop(0)
@@ -648,6 +690,7 @@ if __name__ == "__main__":
     # Make this behavior configurable
     spigot_feed.poll_feeds()
     spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)
+    spigot_post.post_items()
       
 # TODO
 # - Offering logging configuration?

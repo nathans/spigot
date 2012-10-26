@@ -30,6 +30,7 @@ import os
 import sqlite3
 import sys
 from time import mktime
+import urllib
 
 # Bundled modules
 # import statusnet
@@ -528,6 +529,30 @@ class SpigotPost():
                item %s" % (account,item_hash))
            return false
 
+    def _shorten_url(self, url):
+        """Return a shortened URL using the b1t.it service, or return the
+        unmodified URL if the service is unavailable."""
+
+        params = urllib.urlencode({"url":url})
+        try:
+            resp = urllib.urlopen("http://b1t.it/", params).read()
+        except:
+            logging.exception("  Could not contact URL-shortening service")
+            return url
+        result = {}
+        try:
+            result.update(json.loads(resp))
+        except:
+            logging.exception("  Invalid response from URL-shortening service")
+            return url
+        if result.has_key("url"):
+            short_url = result["url"]
+            return short_url
+        else:
+            logging.error("  Could not get short url for %s" % url)
+            return url
+
+
     def _format_message(self, feed, link, title, form):
         """Return a string formatted according to the feed's configuration.
         If the string is too long for the maximum post length for the server,
@@ -543,24 +568,19 @@ class SpigotPost():
         # TODO get maxlength from statusnet server via api
         shortened_url = False
         size = len(message)
+        limit = 140
         # Allow 3 extra chars for '...'
-        trunc = (size - 140) + 3
+        trunc = (size - limit) + 3
         logging.debug("  Length of message is %d chars" % size)
-        if size > 140:
+        if size > limit:
             logging.warning("  Message is longer than max length for server.")
-        while len(message) > 140:
+        while len(message) > limit:
             # First try to shorten the URL if included
-            if (not shortened_url) and ("$l" in raw_format):
+            if (not shortened_url) and ("$l" in form):
                 # Get shortened URL for link
-                krunch = krunchlib.Krunch("http://is.gd/api.php?longurl=")
-                try:
-                    shortened_url = krunch.krunch_url(link)
-                    logging.debug("  Shortened URL")
-                    message = raw_format.replace("$t",title)
+                    shortened_url = self._shorten_url(link)
+                    message = form.replace("$t",title)
                     message = message.replace("$l",shortened_url)
-                except:
-                    logging.warning("  Unable to shorten URL")
-                    # Do not try to shorten endlessly
                     shortened_url = True
             # Otherwise truncate the message using an ellipse
             else:
@@ -571,7 +591,7 @@ class SpigotPost():
                 if "$t" in raw_format:
                     logging.debug("  Truncating title")
                     new_title = title[:-trunc] + '...'
-                    message = raw_format.replace("$t",new_title)
+                    message = form.replace("$t",new_title)
                     message = message.replace("$l",shortened_url)
                 else:
                     logging.warning("  Truncating message - could break links")

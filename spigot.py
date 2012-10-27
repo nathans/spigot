@@ -4,6 +4,10 @@
 #
 # (c) 2011, 2012 by Nathan Smith <nathan@smithfam.info>
 #
+# Portions adapted from Identicurse (http://identicurse.net)
+# (C) 2010-2012 Reality <tinmachin3@gmail.com> and
+# Psychedelic Squid <psquid@psquid.net>
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -33,7 +37,17 @@ from time import mktime
 import urllib
 
 # Bundled modules
-import statusnet
+from statusnet import StatusNet
+
+# Globals
+# TODO Get "production" keys, these are the "dev" set
+oauth_keys = {
+    "https://identi.ca/api": {
+        "consumer_key": "197fe6cae1e4996187be6398f0264647",
+        "consumer_secret": "df84016bce5050b1cfc6b280410c4b1c"
+    }
+}
+
 
 class SpigotConfig(dict):
     """Extends the built-in dict type to provide a configuration interface 
@@ -45,6 +59,7 @@ class SpigotConfig(dict):
 
     def __init__(self, path="spigot.json"):
         self.config_file = path
+        self.current_oauth_user = None
 
     def load(self):
         """Load the spigot0 json config file from the user's home directory
@@ -57,10 +72,7 @@ class SpigotConfig(dict):
             # Validate here
             self.update(json.loads(open(self.config_file, "r").read()))
         except IOError:
-            logging.error("Could not load configuration file")
-            sys.exit(2)
-
-        self._get_feeds()
+            logging.warning("Could not load configuration file")
 
     def save(self):
         "Convert the state of the SpigotConfig dict to json and save."
@@ -73,18 +85,56 @@ class SpigotConfig(dict):
             logging.exception("Could not save configuration file")
             sys.exit(2)
 
+    def store_oauth_tokens(self, token, secret):
+        "Store the given oauth token and token_secret temporarily"
+
+        # Have to store these tokens temporarily as a shim to be compatible
+        # with Identicurse's single-user paradigm.
+        logging.debug("Received oauth tokens")
+        self.temp_oauth_token = token
+        self.temp_oauth_token_secret = secret
+
     def add_user(self):
-        """Interactively add a new user to the configuration."""
+        "Interactively add a new user to the configuration."
 
         # Adapted from Identicurse - http://b1t.it/cjLm
         self.load()
+
+        # Name the account
+        # This is used purely for SpigotConfig internals, linking feeds
+        # (defined later) to accounts. I should probably find a way to
+        # programmatically determine a "name" for the account based on URL
+        # of the user's profile, but I don't see that in the API.
+        name = raw_input("Name this account (e.g. example@identi.ca) ")
+
+        raw_api_path = raw_input("API path [https://identi.ca/api]: ")
+        if raw_api_path == "":
+            api_path = "https://identi.ca/api"
+        else:
+            if len(raw_api_path) < 7 or raw_api_path[:7] != "http://" and\
+                    raw_api_path[:8] != "https://":
+                raw_api_path = "http://" + raw_api_path
+            if len(raw_api_path) >= 7 and raw_api_path[:5] != "https":
+                https_api_path = "https" + raw_api_path[4:]
+                response = raw_input("Use HTTPS instead? [Y/n]").upper()
+                if response == "":
+                    response = "Y"
+                if response[0] == "Y":
+                    api_path = https_api_path
+                else:
+                    api_path = raw_api_path
 
         # Authorization type: OAuth or U/P
         use_oauth = raw_input("Use OAuth [Y/n]? ").upper()
         if use_oauth == "":
             use_oauth = "Y"
         if use_oauth[0] == "Y":
-            auth_type = "oauth"
+            if api_path in oauth_keys:
+                auth_type = "oauth"
+            else:
+                logging.error("No Oauth keys available fo this instance,\
+                              reverting to username/password.")
+                auth_type = "userpass"
         else:
             auth_type = "userpass"
         
@@ -92,35 +142,41 @@ class SpigotConfig(dict):
         if auth_type == "userpass":
             username = raw_input("Username: ")
             password = raw_input("Password: ")
+        
+        # Construct user configuration dict, starting with global options
+        user = {}
+        user["api_path"] = api_path
+        user["auth_type"] = auth_type
 
-        api_path = raw_input("API path [https://identi.ca/api]: ")
-        if api_path != "":
-            if len(api_path) < 7 or api_path[:7] != "http://" and\
-                    api_path[:8] != "https://":
-                api_path = "http://" + api_path
-            if len(api_path) >= 7 and api_path[:5] != "https":
-                https_api_path = "https" + api_path[4:]
-                response = raw_input("Use HTTPS instead? [Y/n]").upper()
-                if response == "":
-                    response = "Y"
-                if response[0] == "Y":
-                    api_path = https_api_path
-            config.config['api_path'] = api_path
+        if auth_type == "oauth":
+            # Initialize the Oauth relationship
+            init_sn = StatusNet(api_path, auth_type="oauth",
+                consumer_key=oauth_keys[api_path]["consumer_key"],
+                consumer_secret=oauth_keys[api_path]["consumer_secret"],
+                save_oauth_credentials=self.store_oauth_tokens)
+            # Construct the user configuration dict
+            user["consumer_key"] = oauth_keys[api_path]["consumer_key"]
+            user["consumer_secret"] = oauth_keys[api_path]["consumer_secret"]
+            user["oauth_token"] = self.temp_oauth_token
+            user["oauth_token_secret"] = self.temp_oauth_token_secret
         else:
-            api_path = "https://identi.ca/api"
+            init_ns = StatusNet(api_path, username, password)
+            user["username"] = username
+            user["password"] = password
 
+        # Finish constructing the user configuration
+        if "accounts" in self:
+            self["accounts"][name] = user
+        else:
+            users = {}
+            users[name] = user
+            self["accounts"] = users
         self.save()
+        # Clean up the kludge
+        self.temp_oauth_token = None
+        self.temp_oauth_token_secret = None
 
-    # SpigotConfig private methods below
-
-    def _validate_config(self):
-        """Returns True if the json configuration file contains the minimum
-        necessary elements for operation in a proper format."""
-
-        # TODO Write this
-        pass
-
-    def _get_feeds(self):
+    def get_feeds(self):
         """Sets instance variable 'feeds' of feeds to check for new posts.
         Formatted in a tuple in the form of (url, account, interval, format)
         """
@@ -139,7 +195,15 @@ class SpigotConfig(dict):
             logging.debug("  Format: %s" % form)
             feeds_to_poll.append((url, account, interval, form))
             logging.debug("  Added to list of feeds to poll")
-        self.feeds = feeds_to_poll
+        return feeds_to_poll
+
+    # SpigotConfig private methods below
+    def _validate_config(self):
+        """Returns True if the json configuration file contains the minimum
+        necessary elements for operation in a proper format."""
+
+        # TODO Write this
+        pass
 
 
 class SpigotConnect():
@@ -147,98 +211,6 @@ class SpigotConnect():
 ###############################################################################
 # Below code adapted from Identicurse
 ###############################################################################
-
-    def init_config(self, config):
-        config.config.load(os.path.join(self.path, "config.json"))
-        print msg['NoConfigFoundInfo'] % (config.config.filename)
-        use_oauth = raw_input("Use OAuth [Y/n]? ").upper()
-        if use_oauth == "":
-            use_oauth = "Y"
-        if use_oauth[0] == "Y":
-            config.config['use_oauth'] = True
-        else:
-            config.config['use_oauth'] = False
-        if not config.config['use_oauth']:
-            config.config['username'] = raw_input("Username: ")
-            config.config['password'] = getpass.getpass("Password: ")
-        api_path = raw_input("API path [%s]: " % (config.config['api_path']))
-        if api_path != "":
-            if len(api_path) < 7 or api_path[:7] != "http://" and\
-                    api_path[:8] != "https://":
-                api_path = "http://" + api_path
-            if len(api_path) >= 7 and api_path[:5] != "https":
-                https_api_path = "https" + api_path[4:]
-                response = raw_input(msg['NotUsingHTTPSInfo'] % (
-                        https_api_path)).upper()
-                if response == "":
-                    response = "Y"
-                if response[0] == "Y":
-                    api_path = https_api_path
-            config.config['api_path'] = api_path
-        update_interval = raw_input(msg['UpdateIntervalInput'] % (
-                config.config['update_interval']))
-        if update_interval != "":
-            try:
-                config.config['update_interval'] = int(update_interval)
-            except ValueError:
-                print msg['InvalidUpdateIntervalError'] % (
-                    config.config['update_interval'])
-        notice_limit = raw_input(msg['NumberNoticesInput'] % (
-                config.config['notice_limit']))
-        if notice_limit != "":
-            try:
-                config.config['notice_limit'] = int(notice_limit)
-            except ValueError:
-                print msg['InvalidNumberNoticesError'] % (
-                    config.config['notice_limit'])
-        # try:
-        if config.config['use_oauth']:
-            instance = helpers.domain_regex.findall(
-                config.config['api_path'])[0][2]
-            if not instance in oauth_consumer_keys:
-                print msg['NoLocallyConsumerKeysInfo']
-                req = urllib2.Request("http://identicurse.net/api_keys.json")
-                resp = urllib2.urlopen(req)
-                api_keys = json.loads(resp.read())
-                if not instance in api_keys['keys']:
-                    print msg["NoRemoteConsumerKeysInfor"]
-                    temp_conn = StatusNet(config.config['api_path'],
-                                          auth_type="oauth",
-                                          consumer_key="anonymous",
-                                          consumer_secret="anonymous",
-                                          save_oauth_credentials=\
-                                              config.store_oauth_keys)
-                    config.config["consumer_key"] = "anonymous"
-                    config.config["consumer_secret"] = "anonymous"
-                else:
-                    temp_conn = StatusNet(config.config['api_path'],
-                                          auth_type="oauth",
-                                          consumer_key=\
-                                              api_keys['keys'][instance],
-                                          consumer_secret=\
-                                              api_keys['secrets'][instance],
-                                          save_oauth_credentials=\
-                                              config.store_oauth_keys)
-                    config.config["consumer_key"] = api_keys['keys'][instance]
-                    config.config["consumer_secret"] =\
-                        api_keys['secrets'][instance]
-            else:
-                temp_conn = StatusNet(config.config['api_path'],\
-                                      auth_type="oauth",
-                                      consumer_key=\
-                                          oauth_consumer_keys[instance],
-                                      consumer_secret=\
-                                          oauth_consumer_secrets[instance],
-                                      save_oauth_credentials=\
-                                          config.store_oauth_keys)
-        else:
-            temp_conn = StatusNet(config.config['api_path'],
-                                  config.config['username'],
-                                  config.config['password'])
-        # except Exception, (errmsg):
-        #     sys.exit("Couldn't establish connection: %s" % (errmsg))
-        print msg["ConfigIsOKInfo"]
-        config.config.save()
 
     def start_connection(self, config):
         try:
@@ -442,7 +414,7 @@ class SpigotFeeds():
     def poll_feeds(self):
         """Check the configured feeds for new posts."""
         
-        feeds_to_poll = self._config.feeds
+        feeds_to_poll = self._config.get_feeds()
         for url, account, interval, form in feeds_to_poll:
             self.scan_feed(url)
 
@@ -650,7 +622,7 @@ class SpigotPost():
         and terminate the loop when it becomes not OK. Presumably one or none 
         will be posted each time this method runs."""
         
-        for feed, account, interval, form in self._config.feeds:
+        for feed, account, interval, form in self._config.get_feeds():
             if not account in self._config["accounts"]:
                 logging.error("Account %s not configured, unable to post." 
                                   % account)
@@ -684,14 +656,15 @@ if __name__ == "__main__":
                             format='%(asctime)s %(levelname)s: %(message)s')
     logging.debug("spigot startup")
     spigot_config = SpigotConfig()
-    spigot_config.load()
-    spigot_db = SpigotDB()
-    spigot_feed = SpigotFeeds(spigot_db, spigot_config)
+#    spigot_config.load()
+
+#    spigot_db = SpigotDB()
+#    spigot_feed = SpigotFeeds(spigot_db, spigot_config)
     # Make this behavior configurable
-    spigot_feed.poll_feeds()
-    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)
-    spigot_post.post_items()
-      
+#    spigot_feed.poll_feeds()
+#    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)
+#    spigot_post.post_items()
+    spigot_config.add_user()      
 # TODO
 # - Offering logging configuration?
 # - Authentication type

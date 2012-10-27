@@ -2,3 +2,4 @@ spigot.db
 spigot.json
 .py/*
 *.pyc
+*.old

@@ -31,6 +31,7 @@ except ImportError:
     import simplejson as json
 import logging
 import os
+import re
 import sqlite3
 import sys
 from time import mktime
@@ -42,11 +43,13 @@ from statusnet import StatusNet
 # Globals
 # TODO Get "production" keys, these are the "dev" set
 oauth_keys = {
-    "https://identi.ca/api": {
+    "identi.ca": {
         "consumer_key": "197fe6cae1e4996187be6398f0264647",
         "consumer_secret": "df84016bce5050b1cfc6b280410c4b1c"
     }
 }
+# Via identicurse below
+domain_regex = re.compile("http(s|)://(www\.|)(.+?)(/.*|)$")
 
 
 class SpigotConfig(dict):
@@ -105,7 +108,7 @@ class SpigotConfig(dict):
         # (defined later) to accounts. I should probably find a way to
         # programmatically determine a "name" for the account based on URL
         # of the user's profile, but I don't see that in the API.
-        name = raw_input("Name this account (e.g. example@identi.ca) ")
+        name = raw_input("Name this account (e.g. example@identi.ca): ")
 
         raw_api_path = raw_input("API path [https://identi.ca/api]: ")
         if raw_api_path == "":
@@ -116,7 +119,7 @@ class SpigotConfig(dict):
                 raw_api_path = "http://" + raw_api_path
             if len(raw_api_path) >= 7 and raw_api_path[:5] != "https":
                 https_api_path = "https" + raw_api_path[4:]
-                response = raw_input("Use HTTPS instead? [Y/n]").upper()
+                response = raw_input("Use HTTPS instead? [Y/n] ").upper()
                 if response == "":
                     response = "Y"
                 if response[0] == "Y":
@@ -129,20 +132,21 @@ class SpigotConfig(dict):
         if use_oauth == "":
             use_oauth = "Y"
         if use_oauth[0] == "Y":
-            if api_path in oauth_keys:
+            instance = domain_regex.findall(api_path)[0][2]
+            if instance in oauth_keys:
                 auth_type = "oauth"
             else:
-                logging.error("No Oauth keys available fo this instance,\
-                              reverting to username/password.")
+                print "No oauth keys available fo this instance."
+                print "Reverting authentication to uname/pass."
                 auth_type = "userpass"
         else:
             auth_type = "userpass"
-        
+
         # Set up userpass method
         if auth_type == "userpass":
             username = raw_input("Username: ")
             password = raw_input("Password: ")
-        
+
         # Construct user configuration dict, starting with global options
         user = {}
         user["api_path"] = api_path
@@ -151,12 +155,12 @@ class SpigotConfig(dict):
         if auth_type == "oauth":
             # Initialize the Oauth relationship
             init_sn = StatusNet(api_path, auth_type="oauth",
-                consumer_key=oauth_keys[api_path]["consumer_key"],
-                consumer_secret=oauth_keys[api_path]["consumer_secret"],
+                consumer_key=oauth_keys[instance]["consumer_key"],
+                consumer_secret=oauth_keys[instance]["consumer_secret"],
                 save_oauth_credentials=self.store_oauth_tokens)
             # Construct the user configuration dict
-            user["consumer_key"] = oauth_keys[api_path]["consumer_key"]
-            user["consumer_secret"] = oauth_keys[api_path]["consumer_secret"]
+            user["consumer_key"] = oauth_keys[instance]["consumer_key"]
+            user["consumer_secret"] = oauth_keys[instance]["consumer_secret"]
             user["oauth_token"] = self.temp_oauth_token
             user["oauth_token_secret"] = self.temp_oauth_token_secret
         else:
@@ -175,6 +179,9 @@ class SpigotConfig(dict):
         # Clean up the kludge
         self.temp_oauth_token = None
         self.temp_oauth_token_secret = None
+
+    def add_feed(self):
+        pass
 
     def get_feeds(self):
         """Sets instance variable 'feeds' of feeds to check for new posts.

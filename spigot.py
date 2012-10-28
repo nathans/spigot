@@ -103,13 +103,6 @@ class SpigotConfig(dict):
         # Adapted from Identicurse - http://b1t.it/cjLm
         self.load()
 
-        # Name the account
-        # This is used purely for SpigotConfig internals, linking feeds
-        # (defined later) to accounts. I should probably find a way to
-        # programmatically determine a "name" for the account based on URL
-        # of the user's profile, but I don't see that in the API.
-        name = raw_input("Name this account (e.g. example@identi.ca): ")
-
         raw_api_path = raw_input("API path [https://identi.ca/api]: ")
         if raw_api_path == "":
             api_path = "https://identi.ca/api"
@@ -152,28 +145,35 @@ class SpigotConfig(dict):
         user["api_path"] = api_path
         user["auth_type"] = auth_type
 
+        account = None
+        idnum = None
         if auth_type == "oauth":
             # Initialize the Oauth relationship
-            init_sn = StatusNet(api_path, auth_type="oauth",
+            init_sn = SpigotConnect(api_path, auth_type="oauth",
                 consumer_key=oauth_keys[instance]["consumer_key"],
                 consumer_secret=oauth_keys[instance]["consumer_secret"],
                 save_oauth_credentials=self.store_oauth_tokens)
             # Construct the user configuration dict
+            account, idnum = init_sn.get_account_info()
             user["consumer_key"] = oauth_keys[instance]["consumer_key"]
             user["consumer_secret"] = oauth_keys[instance]["consumer_secret"]
             user["oauth_token"] = self.temp_oauth_token
             user["oauth_token_secret"] = self.temp_oauth_token_secret
+
         else:
-            init_ns = StatusNet(api_path, username, password)
+            init_sn = SpigotConnect(api_path, username, password)
+            account, idnum = init_sn.get_account_info()
             user["username"] = username
             user["password"] = password
 
+        user["id"] = idnum
+
         # Finish constructing the user configuration
         if "accounts" in self:
-            self["accounts"][name] = user
+            self["accounts"][account] = user
         else:
             users = {}
-            users[name] = user
+            users[account] = user
             self["accounts"] = users
         self.save()
         # Clean up the kludge
@@ -213,83 +213,20 @@ class SpigotConfig(dict):
         pass
 
 
-class SpigotConnect():
+class SpigotConnect(StatusNet):
+    """Extends StatusNet class to provide connectivity to StatusNet instances.
+    Provides some additional features for Spigot."""
 
-###############################################################################
-# Below code adapted from Identicurse
-###############################################################################
-
-    def start_connection(self, config):
+    # API returns a full user profile upon successful auth
+    def get_account_info(self):
         try:
-            if config.config["use_oauth"]:
-                instance = helpers.domain_regex.findall(
-                    config.config['api_path'])[0][2]
-                if "consumer_key" in config.config:
-                    self.conn = StatusNet(config.config['api_path'],
-                                          auth_type="oauth",
-                                          consumer_key=\
-                                              config.config["consumer_key"],
-                                          consumer_secret=\
-                                              config.config["consumer_secret"],
-                                          oauth_token=\
-                                              config.config["oauth_token"],
-                                          oauth_token_secret=\
-                                              config.config[\
-                                                  "oauth_token_secret"],
-                                          save_oauth_credentials=\
-                                              config.store_oauth_keys)
-                elif not instance in oauth_consumer_keys:
-                    print msg['NoLocallyConsumerKeysInfo']
-                    req = urllib2.Request(
-                        "http://identicurse.net/api_keys.json")
-                    resp = urllib2.urlopen(req)
-                    api_keys = json.loads(resp.read())
-                    if not instance in api_keys['keys']:
-                        sys.exit(msg['YourInstanceAPIKeysError'] % (locals()))
-                    else:
-                        self.conn = StatusNet(config.config['api_path'],
-                                              auth_type="oauth",
-                                              consumer_key=\
-                                                  api_keys['keys'][instance],
-                                              consumer_secret=\
-                                                 api_keys['secrets'][instance],
-                                              oauth_token=\
-                                                  config.config["oauth_token"],
-                                              oauth_token_secret=\
-                                                  config.config[\
-                                                      "oauth_token_secret"],
-                                              save_oauth_credentials=\
-                                                  config.store_oauth_keys)
-                        config.config["consumer_key"] =\
-                            api_keys['keys'][instance]
-                        config.config["consumer_secret"] =\
-                            api_keys['secrets'][instance]
-                        config.config.save()
-                else:
-                    self.conn = StatusNet(config.config['api_path'],
-                                          auth_type="oauth",
-                                          consumer_key=\
-                                              oauth_consumer_keys[instance],
-                                          consumer_secret=\
-                                              oauth_consumer_secrets[instance],
-                                          oauth_token=\
-                                              config.config["oauth_token"],
-                                          oauth_token_secret=\
-                                              config.config[\
-                                                  "oauth_token_secret"],
-                                          save_oauth_credentials=\
-                                              config.store_oauth_keys)
-            else:
-                self.conn = StatusNet(config.config['api_path'],
-                                      config.config['username'],
-                                      config.config['password'])
-        except Exception, (errmsg):
-            sys.exit("ERROR: Couldn't establish connection: %s" % (errmsg))
+            resp = self._StatusNet__makerequest("account/verify_credentials")
+            url = resp["statusnet_profile_url"]
+            idnum = resp["id"]
+            return url, idnum
+        except:
+            return None
 
-
-###############################################################################
-# End code from identicurse
-###############################################################################
 
 class SpigotDB():
     """
@@ -511,7 +448,9 @@ class SpigotPost():
         """Return a feedparser object of the account's feed or false if 
         unparseable."""
 
-        feed_url = "%s/rss" % account
+        idnum = self._config["accounts"][account]["id"]
+        api = self._config["accounts"][account]["api_path"]
+        feed_url = "%s/statuses/user_timeline/%s.atom" % (api,idnum)
         try:
             return feedparser.parse(feed_url)
         except:
@@ -527,12 +466,10 @@ class SpigotPost():
        # Infer the username based on the text before ":" in the title element
        # of the first post in the feed. This should probably be done with an 
        # API call if possible.
-       username = posts.entries[0].title.split(":")[0]
-       formatted_message = "%s: %s" % (username, message)
 
        try:
            for i in range(len(posts.entries)):
-               if formatted_message == posts.entries[i].title:
+               if message == posts.entries[i].title:
                    # Update the posted time in the database
                    real_date = feeds.entries[i].date_parsed
                    date = datetime.fromtimestamp(mktime(real_date))

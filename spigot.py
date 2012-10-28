@@ -587,30 +587,31 @@ class SpigotPost():
         # Allow 3 extra chars for '...'
         trunc = (size - limit) + 3
         logging.debug("  Length of message is %d chars" % size)
-        if size > limit:
+        if ( (size > limit) and (limit != 0) ):
             logging.warning("  Message is longer than max length for server.")
-        while len(message) > limit:
-            # First try to shorten the URL if included
-            if (not shortened_url) and ("$l" in form):
-                logging.debug("  Attempting to shorten URL in post")
-                shortened_url = self._shorten_url(link)
-                message = form.replace("$t",title)
-                message = message.replace("$l",shortened_url)
-                shortened_url = True
+            while len(message) > limit:
+                # First try to shorten the URL if included
+                if (not shortened_url) and ("$l" in form):
+                    logging.debug("  Attempting to shorten URL in post")
+                    shortened_url = self._shorten_url(link)
+                    message = form.replace("$t",title)
+                    message = message.replace("$l",shortened_url)
+                    shortened_url = True
             # Otherwise truncate the message using an ellipse
-            else:
+                else:
                 # Try shortening the title
                 # Trying to avoid breaking the link, if possible
                 # This code is not very smart, hopefully people will not
                 # input stuff longer than their max server length :-(
-                if "$t" in raw_format:
-                    logging.debug("  Truncating title")
-                    new_title = title[:-trunc] + '...'
-                    message = form.replace("$t",new_title)
-                    message = message.replace("$l",shortened_url)
-                else:
-                    logging.warning("  Truncating message - could break links")
-                    message = message[:137] + '...'
+                    if "$t" in raw_format:
+                        logging.debug("  Truncating title")
+                        new_title = title[:-trunc] + '...'
+                        message = form.replace("$t",new_title)
+                        message = message.replace("$l",shortened_url)
+                    else:
+                        logging.warning("  Truncating message - could break \
+                                        links")
+                        message = message[:137] + '...'
         logging.debug("  Posted message will be %s" % message)
         return message
 
@@ -634,9 +635,9 @@ class SpigotPost():
             unposted_items = self._spigotdb.get_unposted_items(feed)
             # Initialize Statusnet connection here
             sn = None
-            ac = self_config["accounts"][account]
+            ac = self._config["accounts"][account]
             if ac["auth_type"] == "oauth":
-                sn = SpigotConnect(ac["api_path", auth_type="oauth",
+                sn = SpigotConnect(ac["api_path"], auth_type="oauth",
                                       consumer_key=ac["consumer_key"],
                                       consumer_secret=ac["consumer_secret"],
                                       oauth_token=ac["oauth_token"],
@@ -646,8 +647,8 @@ class SpigotPost():
                 sn = SpigotConnect(ac["api_path"], ac["username"], 
                                    ac["password"])
             url, idnum = sn.get_account_info()
-            sn_config = json.loads(sn.statusnet_config())
-            limit = sn_config["site"]["textlimit"]
+            limit = int(sn.statusnet_config()["site"]["textlimit"])
+            logging.debug("  Text limit for this instance is %d" % limit)
             
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
@@ -665,6 +666,7 @@ class SpigotPost():
                 if not self._check_duplicate(user_posts, message, item_hash):
                     logging.info("  Posting item %s from %s to account %s"
                         % (item_hash,feed,account))
+                    sn.statuses_update(message, "Spigot")
                     # TODO Actually post it here
                     self._spigotdb.mark_posted(item_hash)
 

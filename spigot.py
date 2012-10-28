@@ -22,6 +22,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 # Standard library imports
+import argparse
 from datetime import datetime, timedelta
 import feedparser
 import hashlib
@@ -63,6 +64,9 @@ class SpigotConfig(dict):
     def __init__(self, path="spigot.json"):
         self.config_file = path
         self.current_oauth_user = None
+        self.no_config = True
+        if os.path.exists(self.config_file):
+            self.no_config = False
 
     def load(self):
         """Load the spigot0 json config file from the user's home directory
@@ -652,10 +656,28 @@ class SpigotPost():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, \
+    spigot_config = SpigotConfig()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--add-account","-a",action="store_true")
+    parser.add_argument("--add-feed","-f",action="store_true")
+    log_levels = ["DEBUG","INFO","WARNING","ERROR","CRITICAL"]
+    parser.add_argument("--log-level","-l",choices=log_levels,
+                        default="WARNING")
+    args = parser.parse_args()
+
+    # Logging configuration
+    logging.basicConfig(level=args.log_level, \
                             format='%(asctime)s %(levelname)s: %(message)s')
     logging.debug("spigot startup")
-    spigot_config = SpigotConfig()
+
+    # No configuration present, doing welcom wagon
+    if spigot_config.no_config:
+        logging.info("No configuration file now, running welcome wizard.")
+        spigot_config.add_user()
+        spigot_config.add_feed()
+        sys.exit(0)
+
 #    spigot_config.load()
 
 #    spigot_db = SpigotDB()
@@ -666,6 +688,10 @@ if __name__ == "__main__":
 #    spigot_post.post_items()
 #    spigot_config.add_user()      
     spigot_config.add_feed()
+
+
+
+
 # TODO
 # - Offering logging configuration?
 # - Authentication type

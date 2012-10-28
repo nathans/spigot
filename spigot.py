@@ -107,6 +107,7 @@ class SpigotConfig(dict):
         # Adapted from Identicurse - http://b1t.it/cjLm
         self.load()
 
+        print "Adding user"
         raw_api_path = raw_input("API path [https://identi.ca/api]: ")
         if raw_api_path == "":
             api_path = "https://identi.ca/api"
@@ -504,11 +505,10 @@ class SpigotPost():
 
     ### SpigotPost private methods
 
-    def _get_account_posts(self, account):
+    def _get_account_posts(self, account, idnum):
         """Return a feedparser object of the account's feed or false if 
         unparseable."""
 
-        idnum = self._config["accounts"][account]["id"]
         api = self._config["accounts"][account]["api_path"]
         feed_url = "%s/statuses/user_timeline/%s.atom" % (api,idnum)
         try:
@@ -569,7 +569,7 @@ class SpigotPost():
             return url
 
 
-    def _format_message(self, feed, link, title, form):
+    def _format_message(self, feed, link, title, form, limit):
         """Return a string formatted according to the feed's configuration.
         If the string is too long for the maximum post length for the server,
         first attempt to shorten any included URL, and then truncate with an
@@ -584,7 +584,6 @@ class SpigotPost():
         # TODO get maxlength from statusnet server via api
         shortened_url = False
         size = len(message)
-        limit = 140
         # Allow 3 extra chars for '...'
         trunc = (size - limit) + 3
         logging.debug("  Length of message is %d chars" % size)
@@ -634,6 +633,21 @@ class SpigotPost():
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
             # Initialize Statusnet connection here
+            sn = None
+            ac = self_config["accounts"][account]
+            if ac["auth_type"] == "oauth":
+                sn = SpigotConnect(ac["api_path", auth_type="oauth",
+                                      consumer_key=ac["consumer_key"],
+                                      consumer_secret=ac["consumer_secret"],
+                                      oauth_token=ac["oauth_token"],
+                                      oauth_token_secret=\
+                                          ac["oauth_token_secret"])
+            else:
+                sn = SpigotConnect(ac["api_path"], ac["username"], 
+                                   ac["password"])
+            url, idnum = sn.get_account_info()
+            sn_config = json.loads(sn.statusnet_config())
+            limit = sn_config["site"]["textlimit"]
             
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
@@ -644,9 +658,9 @@ class SpigotPost():
                 link = item[1]
                 title = item[2]
                 item_hash = item[3]
-                message = self._format_message(feed, link, title, form)
+                message = self._format_message(feed, link, title, form, limit)
                 # Make sure that it has not been posted recently
-                user_posts = self._get_account_posts(account)
+                user_posts = self._get_account_posts(account, idnum)
                 logging.debug("  Evaluating item %s for posting." % item_hash)
                 if not self._check_duplicate(user_posts, message, item_hash):
                     logging.info("  Posting item %s from %s to account %s"
@@ -673,25 +687,21 @@ if __name__ == "__main__":
 
     # No configuration present, doing welcom wagon
     if spigot_config.no_config:
-        logging.info("No configuration file now, running welcome wizard.")
+        print "No configuration file now, running welcome wizard."
         spigot_config.add_user()
         spigot_config.add_feed()
         sys.exit(0)
+    if args.add_account:
+        spigot_config.add_user()
+        sys.exit(0)
+    if args.add_feed:
+        spigot_config.add_feed()
+        sys.exit(0)
 
-#    spigot_config.load()
-
-#    spigot_db = SpigotDB()
-#    spigot_feed = SpigotFeeds(spigot_db, spigot_config)
-    # Make this behavior configurable
-#    spigot_feed.poll_feeds()
-#    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)
-#    spigot_post.post_items()
-#    spigot_config.add_user()      
-    spigot_config.add_feed()
-
-
-
-
-# TODO
-# - Offering logging configuration?
-# - Authentication type
+    # Normal operation
+    spigot_config.load()
+    spigot_db = SpigotDB()
+    spigot_feed = SpigotFeeds(spigot_db, spigot_config)
+    spigot_feed.poll_feeds()
+    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)
+    spigot_post.post_items()

@@ -181,7 +181,63 @@ class SpigotConfig(dict):
         self.temp_oauth_token_secret = None
 
     def add_feed(self):
-        pass
+        "Add a feed, account, interval, and format to the configuration."
+
+        self.load()
+        if not "accounts" in self:
+            logging.error("No accounts configured.")
+            sys.exit(2)
+        account = None
+        interval = None
+        form = None
+
+        print "Adding feed..."
+        url = raw_input("Feed URL: ")
+        accounts = self["accounts"].keys()
+        print "Choose an account:"
+        for i in range(len(accounts)):
+            print "%d. %s" % (i,accounts[i])
+
+        valid_account = False
+        while not valid_account:
+            try:
+                account_raw = int(raw_input("Number: "))
+                try:
+                    account = accounts[account_raw]
+                    valid_account = True
+                except:
+                    print "Choice out of range."
+            except:
+                print "Not a number."
+        valid_interval = False
+        while not valid_interval:
+            try:
+                raw_inter = raw_input("Minimum time between posts (minutes): ")
+                interval = int(raw_inter)
+                valid_interval = True
+            except:
+                print "Invalide interval specified."
+        print """Spigot formats your outgoing posts based on fields in the feed
+              being scanned. Use the following substitutions:
+              $t - title
+              $l - link"""
+        form = raw_input("Format: ")
+        
+        # Put it all together
+        feed = {}
+        feed["account"] = account
+        feed["interval"] = interval
+        feed["format"] = form
+        
+        if "feeds" in self:
+            self["feeds"][url] = feed
+        else:
+            feeds = {}
+            feeds[url] = feed
+            self["feeds"] = feeds
+
+        self.save()
+
 
     def get_feeds(self):
         """Sets instance variable 'feeds' of feeds to check for new posts.
@@ -219,13 +275,13 @@ class SpigotConnect(StatusNet):
 
     # API returns a full user profile upon successful auth
     def get_account_info(self):
-        try:
-            resp = self._StatusNet__makerequest("account/verify_credentials")
-            url = resp["statusnet_profile_url"]
-            idnum = resp["id"]
-            return url, idnum
-        except:
-            return None
+        """Retrieve the JSON account profile information which comes with a 
+        successful verify credentials and return the account URL and id."""
+
+        resp = self._StatusNet__makerequest("account/verify_credentials")
+        url = resp["statusnet_profile_url"]
+        idnum = resp["id"]
+        return url, idnum
 
 
 class SpigotDB():
@@ -608,7 +664,8 @@ if __name__ == "__main__":
 #    spigot_feed.poll_feeds()
 #    spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)
 #    spigot_post.post_items()
-    spigot_config.add_user()      
+#    spigot_config.add_user()      
+    spigot_config.add_feed()
 # TODO
 # - Offering logging configuration?
 # - Authentication type

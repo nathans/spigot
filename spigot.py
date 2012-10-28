@@ -587,7 +587,8 @@ class SpigotPost():
         # Allow 3 extra chars for '...'
         trunc = (size - limit) + 3
         logging.debug("  Length of message is %d chars" % size)
-        if ( (size > limit) and (limit != 0) ):
+        # Limit=0 indicates no limit, skip truncation efforts
+        if size > limit > 0:
             logging.warning("  Message is longer than max length for server.")
             while len(message) > limit:
                 # First try to shorten the URL if included
@@ -666,7 +667,8 @@ class SpigotPost():
                 if not self._check_duplicate(user_posts, message, item_hash):
                     logging.info("  Posting item %s from %s to account %s"
                         % (item_hash,feed,account))
-                    sn.statuses_update(message, "Spigot")
+                    sn.statuses_update(message.encode(user_posts.encoding), 
+                                       "Spigot")
                     # TODO Actually post it here
                     self._spigotdb.mark_posted(item_hash)
 

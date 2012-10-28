@@ -531,7 +531,7 @@ class SpigotPost():
            for i in range(len(posts.entries)):
                if message == posts.entries[i].title:
                    # Update the posted time in the database
-                   real_date = feeds.entries[i].date_parsed
+                   real_date = posts.entries[i].date_parsed
                    date = datetime.fromtimestamp(mktime(real_date))
                    logging.debug("  Item %s already been posted. Correcting."
                                 % item_hash)
@@ -665,12 +665,15 @@ class SpigotPost():
                 user_posts = self._get_account_posts(account, idnum)
                 logging.debug("  Evaluating item %s for posting." % item_hash)
                 if not self._check_duplicate(user_posts, message, item_hash):
-                    logging.info("  Posting item %s from %s to account %s"
-                        % (item_hash,feed,account))
-                    sn.statuses_update(message.encode(user_posts.encoding), 
+                    logging.info("  Posting item %s from %s to account %s" 
+                                 % (item_hash,feed,account))
+
+                    try:
+                        sn.statuses_update(message.encode(user_posts.encoding),
                                        "Spigot")
-                    # TODO Actually post it here
-                    self._spigotdb.mark_posted(item_hash)
+                        self._spigotdb.mark_posted(item_hash)
+                    except:
+                        logging.exception("  Unable to post item")
 
 
 if __name__ == "__main__":

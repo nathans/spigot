@@ -24,7 +24,6 @@
 # Standard library imports
 import argparse
 from datetime import datetime, timedelta
-import feedparser
 import hashlib
 try:
     import json
@@ -41,8 +40,10 @@ import urllib
 # Bundled modules
 from statusnet import StatusNet
 
+# 3rd-party modules
+import feedparser
+
 # Globals
-# TODO Get "production" keys, these are the "dev" set
 oauth_keys = {
     "identi.ca": {
         "consumer_key": "197fe6cae1e4996187be6398f0264647",
@@ -75,7 +76,6 @@ class SpigotConfig(dict):
         # Start with a clean configuration object
         self.clear()
         try:
-            # Validate here
             self.update(json.loads(open(self.config_file, "r").read()))
         except IOError:
             logging.warning("Could not load configuration file")
@@ -85,7 +85,6 @@ class SpigotConfig(dict):
 
         logging.debug("Saving spigot.json")
         try:
-            # Validate here
             open(self.config_file, "w").write(json.dumps(self, indent=4))
         except IOError:
             logging.exception("Could not save configuration file")
@@ -273,6 +272,8 @@ class SpigotConnect(StatusNet):
         """Retrieve the JSON account profile information which comes with a 
         successful verify credentials and return the account URL and id."""
 
+        # Have to explicitly mangle namespace to overcome "private" method
+        # protection when extending classes.
         resp = self._StatusNet__makerequest("account/verify_credentials")
         url = resp["statusnet_profile_url"]
         idnum = resp["id"]
@@ -283,16 +284,13 @@ class SpigotConnect(StatusNet):
 
         return int(self.statusnet_config()["site"]["textlimit"])
 
+
 class SpigotDB():
-    """
-    Handle database calls for Spigot
-    """
+    """Handle database calls for Spigot."""
  
     def __init__(self, path="spigot.db"):
         self.path = path
         self._connect()
-
-    ### SpigotDB private methods
 
     def _connect(self):
         """Establish the database connection for this instantiation."""
@@ -324,8 +322,6 @@ class SpigotDB():
         logging.debug("Initialized database tables")
         curs.close()
         
-        ### SpigotDB public methods
-
     def close(self):
         """Cleanup after the db is no longer needed."""
         
@@ -422,7 +418,6 @@ class SpigotFeeds():
 
         logging.debug("Polling feed %s for new items" % url)
         # Allow for parsing of this feed to fail without raising an exception
-        
         try:
             p = feedparser.parse(url)
         except:
@@ -487,8 +482,7 @@ class SpigotFeeds():
         
 
 class SpigotPost():
-    """
-    Handle the posting of syndicated content stored in the SpigotDB to the 
+    """Handle the posting of syndicated content stored in the SpigotDB to the 
     statusnet account.
     """
     
@@ -496,8 +490,6 @@ class SpigotPost():
         self._spigotdb = db
         self._config = spigot_config
         self._spigotfeed = spigot_feed
-
-    ### SpigotPost private methods
 
     def _get_account_posts(self, account, idnum):
         """Return a feedparser object of the account's feed or false if 
@@ -512,14 +504,9 @@ class SpigotPost():
             return False
 
     def _check_duplicate(self, posts, message, item_hash):
-
        """Return True if the given content has been posted on the given
        statusnet account recently. Otherwise return False. Intended to prevent
        accidental duplicate posts."""
-
-       # Infer the username based on the text before ":" in the title element
-       # of the first post in the feed. This should probably be done with an 
-       # API call if possible.
 
        try:
            for i in range(len(posts.entries)):
@@ -567,7 +554,6 @@ class SpigotPost():
             logging.error("  Could not get short url for %s" % url)
             return url
 
-
     def _format_message(self, feed, link, title, form, limit):
         """Return a string formatted according to the feed's configuration.
         If the string is too long for the maximum post length for the server,
@@ -580,7 +566,6 @@ class SpigotPost():
         
         message = form.replace("$t",title)
         message = message.replace("$l",link)
-        # TODO get maxlength from statusnet server via api
         shortened_url = False
         size = len(message)
         # Allow 3 extra chars for '...'
@@ -615,11 +600,8 @@ class SpigotPost():
         logging.debug("  Posted message will be %s" % message)
         return message
 
-    ### SpigotPost public methods
-
     def post_items(self):
         """Handle the posting of unposted items.
-        
         
         Iterate over each pollable feed and check to see if it is permissible
         to post new items based on interval configuration. Loop while it is OK,
@@ -666,7 +648,6 @@ class SpigotPost():
                 if not self._check_duplicate(user_posts, message, item_hash):
                     logging.info("  Posting item %s from %s to account %s" 
                                  % (item_hash,feed,account))
-
                     try:
                         sn.statuses_update(message.encode(user_posts.encoding),
                                        "Spigot")
@@ -677,7 +658,6 @@ class SpigotPost():
 
 if __name__ == "__main__":
     spigot_config = SpigotConfig()
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--add-account","-a",action="store_true")
     parser.add_argument("--add-feed","-f",action="store_true")

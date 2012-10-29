@@ -49,7 +49,6 @@ oauth_keys = {
         "consumer_secret": "df84016bce5050b1cfc6b280410c4b1c"
     }
 }
-# Via identicurse below
 domain_regex = re.compile("http(s|)://(www\.|)(.+?)(/.*|)$")
 
 
@@ -243,7 +242,6 @@ class SpigotConfig(dict):
 
         self.save()
 
-
     def get_feeds(self):
         """Sets instance variable 'feeds' of feeds to check for new posts.
         Formatted in a tuple in the form of (url, account, interval, format)
@@ -265,14 +263,6 @@ class SpigotConfig(dict):
             logging.debug("  Added to list of feeds to poll")
         return feeds_to_poll
 
-    # SpigotConfig private methods below
-    def _validate_config(self):
-        """Returns True if the json configuration file contains the minimum
-        necessary elements for operation in a proper format."""
-
-        # TODO Write this
-        pass
-
 
 class SpigotConnect(StatusNet):
     """Extends StatusNet class to provide connectivity to StatusNet instances.
@@ -288,6 +278,10 @@ class SpigotConnect(StatusNet):
         idnum = resp["id"]
         return url, idnum
 
+    def get_textlimit(self):
+        "Return the textlimit property of the connected Statusnet instance."
+
+        return int(self.statusnet_config()["site"]["textlimit"])
 
 class SpigotDB():
     """
@@ -378,7 +372,7 @@ class SpigotDB():
         """Mark the given item posted by setting its posted datetime to now."""
         
         if not date:
-            date = datetime.now()
+            date = datetime.utcnow()
         curs = self._db.cursor()
         curs.execute("UPDATE items SET posted=? WHERE hash=?",
             (date, item_hash))
@@ -477,7 +471,7 @@ class SpigotFeeds():
         posted = self._spigotdb.get_latest_post(feed)
         if posted:
             next = posted + delta
-            now = datetime.now()
+            now = datetime.utcnow()
             if now >= next:
                 #post it                
                 logging.debug("  Feed %s is ready for a new post" % feed)
@@ -531,10 +525,15 @@ class SpigotPost():
            for i in range(len(posts.entries)):
                if message == posts.entries[i].title:
                    # Update the posted time in the database
+                   # Spigot db uses UTC times for the "posted" field
+                   # Assuming that the value provided by feedparser here is
+                   # UTC. If the assumption is incorrect, it may result in
+                   # discrepencies in time.
                    real_date = posts.entries[i].date_parsed
                    date = datetime.fromtimestamp(mktime(real_date))
                    logging.debug("  Item %s already been posted. Correcting."
                                 % item_hash)
+                   
                    self._spigotdb.mark_posted(item_hash, date)
                    return True
            return False
@@ -648,7 +647,7 @@ class SpigotPost():
                 sn = SpigotConnect(ac["api_path"], ac["username"], 
                                    ac["password"])
             url, idnum = sn.get_account_info()
-            limit = int(sn.statusnet_config()["site"]["textlimit"])
+            limit = sn.get_textlimit()
             logging.debug("  Text limit for this instance is %d" % limit)
             
             while self._spigotfeed.feed_ok_to_post(feed):

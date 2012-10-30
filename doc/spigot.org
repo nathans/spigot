@@ -1,11 +1,10 @@
 #+TITLE: Spigot: Rate-limited feed aggregation to StatusNet
 #+OPTIONS: H:2
-* Spigot
-  Spigot takes syndicated content feeds and posts them to StatusNet accounts at a limited rate. This way you can syndicate content to a StatusNet account without worrying about flooding the account when updates to the feed are frequent.
+Spigot takes syndicated content feeds and posts them to StatusNet accounts at a limited rate. This way you can syndicate content to a StatusNet account without worrying about flooding the account when updates to the feed are frequent.
 
-  First you set up connections to one or more StatusNet accounts using OAuth or basic authentication. Then you add RSS or Atom feeds, specifying which account to post to, the maximum post frequency, and the format of the posted message. Each time spigot runs, it checks the feeds for new posts, and determines whether or not a new item should be posted based on the specified interval. Spigot can be run in a cron job (or manually) to make regular posts.
+First you set up connections to one or more StatusNet accounts using OAuth or basic authentication. Then you add RSS or Atom feeds, specifying which account to post to, the maximum post frequency, and the format of the posted message. Each time spigot runs, it checks the feeds for new posts, and determines whether or not a new item should be posted based on the specified interval. Spigot can be run in a cron job (or manually) to make regular posts.
 
-  Spigot is inspired by [[https://github.com/zcopley/tricklepost][Tricklepost]] and [[http://brdcst.it/][Brdcst.it]].
+Spigot is inspired by [[https://github.com/zcopley/tricklepost][Tricklepost]] and [[http://brdcst.it/][Brdcst.it]].
 ** Requirements
 *** >= Python 2.3
 *** >= [[http://pypi.python.org/pypi/argparse/1.2.1][Argparse]] 1.2.1 (bundled with Python 2.7 or higher)

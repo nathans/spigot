@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+               "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+lang="en" xml:lang="en">
+<head>
+<title>Spigot: Rate-limited feed aggregation to StatusNet</title>
+<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="generated" content="2012-10-29 21:30:48 PDT"/>
+<meta name="author" content="Nathan Smith"/>
+<meta name="description" content=""/>
+<meta name="keywords" content=""/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+
+<h1 class="title">Spigot: Rate-limited feed aggregation to StatusNet</h1>
+
+
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1 Spigot </a>
+<ul>
+<li><a href="#sec-1.1">1.1 Requirements </a></li>
+<li><a href="#sec-1.2">1.2 Download </a></li>
+<li><a href="#sec-1.3">1.3 Installation </a></li>
+<li><a href="#sec-1.4">1.4 Running </a></li>
+<li><a href="#sec-1.5">1.5 Credits </a></li>
+<li><a href="#sec-1.6">1.6 License </a></li>
+<li><a href="#sec-1.7">1.7 FAQ </a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> Spigot </h2>
+<div class="outline-text-2" id="text-1">
+
+<p>Spigot takes syndicated content feeds and posts them to StatusNet accounts at a limited rate. This way you can syndicate content to a StatusNet account without worrying about flooding the account when updates to the feed are frequent.
+</p>
+<p>
+First you set up connections to one or more StatusNet accounts using OAuth or basic authentication. Then you add RSS or Atom feeds, specifying which account to post to, the maximum post frequency, and the format of the posted message. Each time spigot runs, it checks the feeds for new posts, and determines whether or not a new item should be posted based on the specified interval. Spigot can be run in a cron job (or manually) to make regular posts.
+</p>
+<p>
+Spigot is inspired by <a href="https://github.com/zcopley/tricklepost">Tricklepost</a> and <a href="http://brdcst.it/">Brdcst.it</a>.
+</p>
+</div>
+
+<div id="outline-container-1.1" class="outline-3">
+<h3 id="sec-1.1"><span class="section-number-3">1.1</span> Requirements </h3>
+<div class="outline-text-3" id="text-1.1">
+
+<ul>
+<li id="sec-1.1.1">&gt;= Python 2.3 <br/>
+</li>
+<li id="sec-1.1.2">&gt;= <a href="http://pypi.python.org/pypi/argparse/1.2.1">Argparse</a> 1.2.1 (bundled with Python 2.7 or higher) <br/>
+</li>
+<li id="sec-1.1.3">&gt;= <a href="http://pypi.python.org/pypi/feedparser/5.1.2">Feedparser</a> 5.2.1 <br/>
+</li>
+<li id="sec-1.1.4">&gt;= <a href="http://pypi.python.org/pypi/oauth/1.0.1">OAuth</a> 1.0 <br/>
+</li>
+</ul>
+</div>
+
+</div>
+
+<div id="outline-container-1.2" class="outline-3">
+<h3 id="sec-1.2"><span class="section-number-3">1.2</span> Download </h3>
+<div class="outline-text-3" id="text-1.2">
+
+<p>You can obtain spigot in one of two ways:
+</p><ul>
+<li id="sec-1.2.1">Clone the <a href="https://gitorious.org/spigo">git repo</a> <br/>
+</li>
+<li id="sec-1.2.2">Download and extract a <a href="https://gitorious.org/spigot/spigot/archive-tarball/master">tarball</a> <br/>
+</li>
+</ul>
+</div>
+
+</div>
+
+<div id="outline-container-1.3" class="outline-3">
+<h3 id="sec-1.3"><span class="section-number-3">1.3</span> Installation </h3>
+<div class="outline-text-3" id="text-1.3">
+
+<p>Spigot runs from its own working directory. If you have pip, you can install the requirements using <code>pip install -r requirements.txt</code>.
+</p></div>
+
+</div>
+
+<div id="outline-container-1.4" class="outline-3">
+<h3 id="sec-1.4"><span class="section-number-3">1.4</span> Running </h3>
+<div class="outline-text-3" id="text-1.4">
+
+<p>The first time you run Spigot, it will prompt you to add at least one account and one feed. For further options, pleas run <code>python spigot.py -h</code>.
+</p></div>
+
+</div>
+
+<div id="outline-container-1.5" class="outline-3">
+<h3 id="sec-1.5"><span class="section-number-3">1.5</span> Credits </h3>
+<div class="outline-text-3" id="text-1.5">
+
+<p>Spigot is (c) 2011-2012 by <a href="mailto:nathan@smithfam.info">Nathan Smith</a>. The statusnet module and portions of Spigot are based off of <a href="http://identicurse.net/">Identicurse</a>.
+</p></div>
+
+</div>
+
+<div id="outline-container-1.6" class="outline-3">
+<h3 id="sec-1.6"><span class="section-number-3">1.6</span> License </h3>
+<div class="outline-text-3" id="text-1.6">
+
+<p>Spigot is distributed under the terms of the <a href="http://www.gnu.org/licenses/gpl.html">GNU GPL version 3</a> or later.
+</p></div>
+
+</div>
+
+<div id="outline-container-1.7" class="outline-3">
+<h3 id="sec-1.7"><span class="section-number-3">1.7</span> FAQ </h3>
+<div class="outline-text-3" id="text-1.7">
+
+<ul>
+<li id="sec-1.7.1">Where does Spigot store its configuration files and database? <br/>
+Spigot stores its configuration (spigot.json) and database (spigot.db) in the working directory from which it is invoked. If you are running Spigot from a cron job, you'll want to first cd into the directory containing these.
+</li>
+<li id="sec-1.7.2">How often should I run Spigot? <br/>
+There are a couple factors which weigh on this. First, you want to run it often enough so that catches all of the posts in the feeds it is polling. For example, if you are polling a feed which lists 10 items and is updated about 5 times per hour, you need to run Spigot at least every 2 hours to catch all of those posts in its database.
+
+<p>
+Second, you'll want to run Spigot more often than the shortest interval in your configuration. If you run spigot less often than the shortest interval, posts will effectively happen only as often as Spigot runs.
+</p>
+<p>
+In brief, Spigot should run more often than you want to actually post.
+</p></li>
+</ul>
+</div>
+</div>
+</div>
+<div id="postamble">
+<p class="date"> Date: 2012-10-29 21:30:48 PDT</p>
+<p class="creator">HTML generated by org-mode 6.33x in emacs 23</p>
+</div>
+</div>
+</body>
+</html>

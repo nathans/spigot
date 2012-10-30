@@ -6,7 +6,7 @@ First you set up connections to one or more StatusNet accounts using OAuth or ba
 
 Spigot is inspired by [[https://github.com/zcopley/tricklepost][Tricklepost]] and [[http://brdcst.it/][Brdcst.it]].
 ** Requirements
-*** >= Python 2.5
+*** >= Python 2.6
 *** >= [[http://pypi.python.org/pypi/argparse/1.2.1][Argparse]] 1.2.1 (bundled with Python 2.7 or higher)
 *** >= [[http://pypi.python.org/pypi/feedparser/5.1.2][Feedparser]] 5.2.1
 *** >= [[http://pypi.python.org/pypi/oauth/1.0.1][OAuth]] 1.0

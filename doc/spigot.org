@@ -6,7 +6,7 @@ First you set up connections to one or more StatusNet accounts using OAuth or ba
 
 Spigot is inspired by [[https://github.com/zcopley/tricklepost][Tricklepost]] and [[http://brdcst.it/][Brdcst.it]].
 ** Requirements
-*** >= Python 2.3
+*** >= Python 2.5
 *** >= [[http://pypi.python.org/pypi/argparse/1.2.1][Argparse]] 1.2.1 (bundled with Python 2.7 or higher)
 *** >= [[http://pypi.python.org/pypi/feedparser/5.1.2][Feedparser]] 5.2.1
 *** >= [[http://pypi.python.org/pypi/oauth/1.0.1][OAuth]] 1.0
@@ -23,9 +23,10 @@ Spigot is (c) 2011-2012 by [[mailto:nathan@smithfam.info][Nathan Smith]]. The st
 ** License
 Spigot is distributed under the terms of the [[http://www.gnu.org/licenses/gpl.html][GNU GPL version 3]] or later.
 ** FAQ
-*** Where does Spigot store its configuration files and database?
+*** *Where does Spigot store its configuration files and database?*
 Spigot stores its configuration (spigot.json) and database (spigot.db) in the working directory from which it is invoked. If you are running Spigot from a cron job, you'll want to first cd into the directory containing these.
-*** How often should I run Spigot?
+
+*** *How often should I run Spigot?*
 There are a couple factors which weigh on this. First, you want to run it often enough so that catches all of the posts in the feeds it is polling. For example, if you are polling a feed which lists 10 items and is updated about 5 times per hour, you need to run Spigot at least every 2 hours to catch all of those posts in its database.
 
 Second, you'll want to run Spigot more often than the shortest interval in your configuration. If you run spigot less often than the shortest interval, posts will effectively happen only as often as Spigot runs.

@@ -2,7 +2,7 @@
 #
 # spigot is a rate limiter for aggregating syndicated content to StatusNet
 #
-# (c) 2011, 2012 by Nathan Smith <nathan@smithfam.info>
+# (c) 2011-2013 by Nathan D. Smith <nathan@smithfam.info>
 #
 # Portions adapted from Identicurse (http://identicurse.net)
 # (C) 2010-2012 Reality <tinmachin3@gmail.com> and
@@ -69,7 +69,7 @@ class SpigotConfig(dict):
             self.no_config = False
 
     def load(self):
-        """Load the spigot0 json config file from the user's home directory
+        """Load the spigot json config file from the user's home directory
         and import it into the SpigotConfig dict object."""
 
         logging.debug("Loading %s" % self.config_file)

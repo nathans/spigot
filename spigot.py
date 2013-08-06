@@ -4,10 +4,6 @@
 #
 # (c) 2011-2013 by Nathan D. Smith <nathan@smithfam.info>
 #
-# Portions adapted from Identicurse (http://identicurse.net)
-# (C) 2010-2012 Reality <tinmachin3@gmail.com> and
-# Psychedelic Squid <psquid@psquid.net>
-#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -37,19 +33,11 @@ import sys
 from time import mktime
 import urllib
 
-# Bundled modules
-from statusnet import StatusNet
-
 # 3rd-party modules
 import feedparser
+from pypump import PyPump
 
 # Globals
-oauth_keys = {
-    "identi.ca": {
-        "consumer_key": "197fe6cae1e4996187be6398f0264647",
-        "consumer_secret": "df84016bce5050b1cfc6b280410c4b1c"
-    }
-}
 domain_regex = re.compile("http(s|)://(www\.|)(.+?)(/.*|)$")
 
 
@@ -102,7 +90,8 @@ class SpigotConfig(dict):
     def add_user(self):
         "Interactively add a new user to the configuration."
 
-        # Adapted from Identicurse - http://b1t.it/cjLm
+        # TODO pumpify
+
         self.load()
 
         print "Adding user"
@@ -274,15 +263,11 @@ class SpigotConnect(StatusNet):
 
         # Have to explicitly mangle namespace to overcome "private" method
         # protection when extending classes.
+        # TODO Pumpify
         resp = self._StatusNet__makerequest("account/verify_credentials")
         url = resp["statusnet_profile_url"]
         idnum = resp["id"]
         return url, idnum
-
-    def get_textlimit(self):
-        "Return the textlimit property of the connected Statusnet instance."
-
-        return int(self.statusnet_config()["site"]["textlimit"])
 
 
 class SpigotDB():
@@ -495,6 +480,7 @@ class SpigotPost():
         """Return a feedparser object of the account's feed or false if 
         unparseable."""
 
+        # TODO: for item in pump inbox
         api = self._config["accounts"][account]["api_path"]
         feed_url = "%s/statuses/user_timeline/%s.atom" % (api,idnum)
         try:
@@ -504,6 +490,7 @@ class SpigotPost():
             return False
 
     def _check_duplicate(self, posts, message, item_hash):
+        # TODO change to work with native PumpIO lists, etc...
        """Return True if the given content has been posted on the given
        statusnet account recently. Otherwise return False. Intended to prevent
        accidental duplicate posts."""
@@ -529,36 +516,9 @@ class SpigotPost():
                item %s" % (account,item_hash))
            return false
 
-    def _shorten_url(self, url):
-        """Return a shortened URL using the b1t.it service, or return the
-        unmodified URL if the service is unavailable."""
-
-        params = urllib.urlencode({"url":url})
-        try:
-            resp = urllib.urlopen("http://b1t.it/", params).read()
-        except:
-            logging.exception("  Could not contact URL-shortening service")
-            return url
-        result = {}
-        try:
-            result.update(json.loads(resp))
-        except:
-            logging.exception("  Invalid response from URL-shortening service")
-            return url
-        if result.has_key("url"):
-            short_url = result["url"]
-            logging.debug("  Retrieved shortened url %s for %s" % 
-                          (short_url, url))
-            return short_url
-        else:
-            logging.error("  Could not get short url for %s" % url)
-            return url
-
-    def _format_message(self, feed, link, title, form, limit):
+    def _format_message(self, feed, link, title, form):
+        # TODO Allow arbitrary insertion of feedparser properties between %%
         """Return a string formatted according to the feed's configuration.
-        If the string is too long for the maximum post length for the server,
-        first attempt to shorten any included URL, and then truncate with an
-        ellipse.
         
         Replacement strings:
         $t : title
@@ -566,38 +526,6 @@ class SpigotPost():
         
         message = form.replace("$t",title)
         message = message.replace("$l",link)
-        shortened_url = False
-        size = len(message)
-        # Allow 3 extra chars for '...'
-        trunc = (size - limit) + 3
-        logging.debug("  Length of message is %d chars" % size)
-        # Limit=0 indicates no limit, skip truncation efforts
-        if size > limit > 0:
-            logging.warning("  Message is longer than max length for server.")
-            while len(message) > limit:
-                # First try to shorten the URL if included
-                if (not shortened_url) and ("$l" in form):
-                    logging.debug("  Attempting to shorten URL in post")
-                    shortened_url = self._shorten_url(link)
-                    message = form.replace("$t",title)
-                    message = message.replace("$l",shortened_url)
-                    shortened_url = True
-            # Otherwise truncate the message using an ellipse
-                else:
-                # Try shortening the title
-                # Trying to avoid breaking the link, if possible
-                # This code is not very smart, hopefully people will not
-                # input stuff longer than their max server length :-(
-                    if "$t" in raw_format:
-                        logging.debug("  Truncating title")
-                        new_title = title[:-trunc] + '...'
-                        message = form.replace("$t",new_title)
-                        message = message.replace("$l",shortened_url)
-                    else:
-                        logging.warning("  Truncating message - could break \
-                                        links")
-                        message = message[:137] + '...'
-        logging.debug("  Posted message will be %s" % message)
         return message
 
     def post_items(self):
@@ -615,6 +543,7 @@ class SpigotPost():
                 sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
+            # TODO Convert to PumpIO
             # Initialize Statusnet connection here
             sn = None
             ac = self._config["accounts"][account]
@@ -629,8 +558,6 @@ class SpigotPost():
                 sn = SpigotConnect(ac["api_path"], ac["username"], 
                                    ac["password"])
             url, idnum = sn.get_account_info()
-            limit = sn.get_textlimit()
-            logging.debug("  Text limit for this instance is %d" % limit)
             
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
@@ -641,7 +568,7 @@ class SpigotPost():
                 link = item[1]
                 title = item[2]
                 item_hash = item[3]
-                message = self._format_message(feed, link, title, form, limit)
+                message = self._format_message(feed, link, title, form)
                 # Make sure that it has not been posted recently
                 user_posts = self._get_account_posts(account, idnum)
                 logging.debug("  Evaluating item %s for posting." % item_hash)

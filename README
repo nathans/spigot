@@ -1,12 +1,8 @@
-spigot - a rate limiter for aggregating syndicated content to StatusNet
-  (c) 2011-2012 Nathan Smith <nathan@smithfam.info>
+spigot - a rate limiter for aggregating syndicated content to PumpIO
+  (c) 2011-2013 Nathan D. Smith <nathan@smithfam.info>
   http://nathan.smithfam.info/spigot.html
 
 spigot depends on Python 2.6 or higher and the following non-standard libraries:  
-
-- statusnet from IdentiCurse <http://identicurse.net/>
-  (c) 2010-2011 Reality <tinmachin3@gmail.com> and Psychedelic Squid <psquid@psquid.net>
-  Bundled with Spigot
 
 - oauth >= 1.0 from <http://oauth.googlecode.com/svn/code/python/>
 - Universal Feed Parser >= 5.0 <http://www.feedparser.org/>

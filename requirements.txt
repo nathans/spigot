@@ -1,3 +1,4 @@
+pypump>=0.1
 argparse>=1.2.1
 oauth>=1.0
 feedparser>=5.1

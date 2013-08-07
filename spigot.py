@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 #
-# spigot is a rate limiter for aggregating syndicated content to StatusNet
+# spigot is a rate limiter for aggregating syndicated content to Pump.IO
 #
 # (c) 2011-2013 by Nathan D. Smith <nathan@smithfam.info>
 #
@@ -78,99 +78,34 @@ class SpigotConfig(dict):
             logging.exception("Could not save configuration file")
             sys.exit(2)
 
-    def store_oauth_tokens(self, token, secret):
-        "Store the given oauth token and token_secret temporarily"
-
-        # Have to store these tokens temporarily as a shim to be compatible
-        # with Identicurse's single-user paradigm.
-        logging.debug("Received oauth tokens")
-        self.temp_oauth_token = token
-        self.temp_oauth_token_secret = secret
-
     def add_user(self):
         "Interactively add a new user to the configuration."
 
-        # TODO pumpify
-
         self.load()
 
-        print "Adding user"
-        raw_api_path = raw_input("API path [https://identi.ca/api]: ")
-        if raw_api_path == "":
-            api_path = "https://identi.ca/api"
-        else:
-            if len(raw_api_path) < 7 or raw_api_path[:7] != "http://" and\
-                    raw_api_path[:8] != "https://":
-                raw_api_path = "http://" + raw_api_path
-            if len(raw_api_path) >= 7 and raw_api_path[:5] != "https":
-                https_api_path = "https" + raw_api_path[4:]
-                response = raw_input("Use HTTPS instead? [Y/n] ").upper()
-                if response == "":
-                    response = "Y"
-                if response[0] == "Y":
-                    api_path = https_api_path
-                else:
-                    api_path = raw_api_path
-
-        # Authorization type: OAuth or U/P
-        use_oauth = raw_input("Use OAuth [Y/n]? ").upper()
-        if use_oauth == "":
-            use_oauth = "Y"
-        if use_oauth[0] == "Y":
-            instance = domain_regex.findall(api_path)[0][2]
-            if instance in oauth_keys:
-                auth_type = "oauth"
-            else:
-                print "No oauth keys available fo this instance."
-                print "Reverting authentication to uname/pass."
-                auth_type = "userpass"
-        else:
-            auth_type = "userpass"
-
-        # Set up userpass method
-        if auth_type == "userpass":
-            username = raw_input("Username: ")
-            password = raw_input("Password: ")
-
-        # Construct user configuration dict, starting with global options
         user = {}
-        user["api_path"] = api_path
-        user["auth_type"] = auth_type
-
-        account = None
-        idnum = None
-        if auth_type == "oauth":
-            # Initialize the Oauth relationship
-            init_sn = SpigotConnect(api_path, auth_type="oauth",
-                consumer_key=oauth_keys[instance]["consumer_key"],
-                consumer_secret=oauth_keys[instance]["consumer_secret"],
-                save_oauth_credentials=self.store_oauth_tokens)
-            # Construct the user configuration dict
-            account, idnum = init_sn.get_account_info()
-            user["consumer_key"] = oauth_keys[instance]["consumer_key"]
-            user["consumer_secret"] = oauth_keys[instance]["consumer_secret"]
-            user["oauth_token"] = self.temp_oauth_token
-            user["oauth_token_secret"] = self.temp_oauth_token_secret
-
-        else:
-            init_sn = SpigotConnect(api_path, username, password)
-            account, idnum = init_sn.get_account_info()
-            user["username"] = username
-            user["password"] = password
-
-        user["id"] = idnum
+        print "Adding user"
+        webfinger = raw_input("Webfinger ID (e.g. bob@identi.ca): ")
+        # Initialize the Oauth relationship
+        pump = PyPump(webfinger,client_name="Spigot")
+        # Now PyPump will walk the user through registration
+        # With that complete, retrieve relevant keys and secrets
+        credentials = pump.get_registration()
+        tokens = pump.get_token()
+        # Construct the user configuration dict
+        user["consumer_key"] = credentials[0]
+        user["consumer_secret"] = credentials[1]
+        user["oauth_token"] = tokens[0]
+        user["oauth_token_secret"] = tokens[1]
 
         # Finish constructing the user configuration
         if "accounts" in self:
-            self["accounts"][account] = user
+            self["accounts"][webfinger] = user
         else:
             users = {}
-            users[account] = user
+            users[webfinger] = user
             self["accounts"] = users
         self.save()
-        # Clean up the kludge
-        self.temp_oauth_token = None
-        self.temp_oauth_token_secret = None
 
     def add_feed(self):
         "Add a feed, account, interval, and format to the configuration."
@@ -250,25 +185,6 @@ class SpigotConfig(dict):
             feeds_to_poll.append((url, account, interval, form))
             logging.debug("  Added to list of feeds to poll")
         return feeds_to_poll
-
-
-class SpigotConnect(StatusNet):
-    """Extends StatusNet class to provide connectivity to StatusNet instances.
-    Provides some additional features for Spigot."""
-
-    # API returns a full user profile upon successful auth
-    def get_account_info(self):
-        """Retrieve the JSON account profile information which comes with a 
-        successful verify credentials and return the account URL and id."""
-
-        # Have to explicitly mangle namespace to overcome "private" method
-        # protection when extending classes.
-        # TODO Pumpify
-        resp = self._StatusNet__makerequest("account/verify_credentials")
-        url = resp["statusnet_profile_url"]
-        idnum = resp["id"]
-        return url, idnum
-
 
 class SpigotDB():
     """Handle database calls for Spigot."""
@@ -384,7 +300,7 @@ class SpigotDB():
 class SpigotFeeds():
     """
     Handle the polling the specified feeds for new posts. Add new posts to 
-    database in preparation for posting to the specified StatusNet accounts.
+    database in preparation for posting to the specified Pump.io accounts.
     """
 
     def __init__(self, db, config):
@@ -468,53 +384,13 @@ class SpigotFeeds():
 
 class SpigotPost():
     """Handle the posting of syndicated content stored in the SpigotDB to the 
-    statusnet account.
+    pump.io account.
     """
     
     def __init__(self, db, spigot_config, spigot_feed):
         self._spigotdb = db
         self._config = spigot_config
         self._spigotfeed = spigot_feed
-
-    def _get_account_posts(self, account, idnum):
-        """Return a feedparser object of the account's feed or false if 
-        unparseable."""
-
-        # TODO: for item in pump inbox
-        api = self._config["accounts"][account]["api_path"]
-        feed_url = "%s/statuses/user_timeline/%s.atom" % (api,idnum)
-        try:
-            return feedparser.parse(feed_url)
-        except:
-            logging.warning("  Could not parse account feed %s" % feed_url)
-            return False
-
-    def _check_duplicate(self, posts, message, item_hash):
-        # TODO change to work with native PumpIO lists, etc...
-       """Return True if the given content has been posted on the given
-       statusnet account recently. Otherwise return False. Intended to prevent
-       accidental duplicate posts."""
-
-       try:
-           for i in range(len(posts.entries)):
-               if message == posts.entries[i].title:
-                   # Update the posted time in the database
-                   # Spigot db uses UTC times for the "posted" field
-                   # Assuming that the value provided by feedparser here is
-                   # UTC. If the assumption is incorrect, it may result in
-                   # discrepencies in time.
-                   real_date = posts.entries[i].date_parsed
-                   date = datetime.fromtimestamp(mktime(real_date))
-                   logging.debug("  Item %s already been posted. Correcting."
-                                % item_hash)
-                   
-                   self._spigotdb.mark_posted(item_hash, date)
-                   return True
-           return False
-       except TypeError:
-           logging.warning("  Could not check account %s for duplicates to \
-               item %s" % (account,item_hash))
-           return false
 
     def _format_message(self, feed, link, title, form):
         # TODO Allow arbitrary insertion of feedparser properties between %%
@@ -543,22 +419,15 @@ class SpigotPost():
                 sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
-            # TODO Convert to PumpIO
-            # Initialize Statusnet connection here
-            sn = None
+            # Initialize Pump.IO connection here
             ac = self._config["accounts"][account]
-            if ac["auth_type"] == "oauth":
-                sn = SpigotConnect(ac["api_path"], auth_type="oauth",
-                                      consumer_key=ac["consumer_key"],
-                                      consumer_secret=ac["consumer_secret"],
-                                      oauth_token=ac["oauth_token"],
-                                      oauth_token_secret=\
-                                          ac["oauth_token_secret"])
-            else:
-                sn = SpigotConnect(ac["api_path"], ac["username"], 
-                                   ac["password"])
-            url, idnum = sn.get_account_info()
-            
+            pump = PyPump(account,
+                          client_name="Spigot",
+                          key=ac["consumer_key"],
+                          secret=ac["consumer_secret"],
+                          token=ac["oauth_token"],
+                          token_secret=ac["oauth_token_secret"])
+
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
                     item = unposted_items.pop(0)
@@ -569,18 +438,17 @@ class SpigotPost():
                 title = item[2]
                 item_hash = item[3]
                 message = self._format_message(feed, link, title, form)
-                # Make sure that it has not been posted recently
-                user_posts = self._get_account_posts(account, idnum)
-                logging.debug("  Evaluating item %s for posting." % item_hash)
-                if not self._check_duplicate(user_posts, message, item_hash):
+
+                try:
                     logging.info("  Posting item %s from %s to account %s" 
                                  % (item_hash,feed,account))
-                    try:
-                        sn.statuses_update(message.encode(user_posts.encoding),
-                                       "Spigot")
-                        self._spigotdb.mark_posted(item_hash)
-                    except:
-                        logging.exception("  Unable to post item")
+                    new_note = pump.Note(message)
+                    new_note.to = pump.Public
+                    new_note.cc = pump.Followers
+                    new_note.send()
+                    self._spigotdb.mark_posted(item_hash)
+                except:
+                    logging.exception("  Unable to post item")
 
 
 if __name__ == "__main__":

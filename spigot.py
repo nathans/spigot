@@ -37,9 +37,6 @@ import urllib
 import feedparser
 from pypump import PyPump
 
-# Globals
-domain_regex = re.compile("http(s|)://(www\.|)(.+?)(/.*|)$")
-
 
 class SpigotConfig(dict):
     """Extends the built-in dict type to provide a configuration interface 
@@ -47,17 +44,14 @@ class SpigotConfig(dict):
     posting.
     """
 
-    # See identicurse's config.py for the inspiration for this model
-
     def __init__(self, path="spigot.json"):
         self.config_file = path
-        self.current_oauth_user = None
         self.no_config = True
         if os.path.exists(self.config_file):
             self.no_config = False
 
     def load(self):
-        """Load the spigot json config file from the user's home directory
+        """Load the spigot json config file from the working directory
         and import it into the SpigotConfig dict object."""
 
         logging.debug("Loading %s" % self.config_file)

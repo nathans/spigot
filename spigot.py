@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 #
-# spigot is a rate limiter for aggregating syndicated content to Pump.IO
+# spigot is a rate limiter for aggregating syndicated content to pump.io
 #
 # (c) 2011-2013 by Nathan D. Smith <nathan@smithfam.info>
 #
@@ -104,6 +104,7 @@ class SpigotConfig(dict):
     def add_feed(self):
         "Add a feed, account, interval, and format to the configuration."
 
+        # TODO Add feature to specify to and cc for each feed
         self.load()
         if not "accounts" in self:
             logging.error("No accounts configured.")

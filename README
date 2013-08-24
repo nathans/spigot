@@ -1,10 +1,10 @@
-spigot - a rate limiter for aggregating syndicated content to PumpIO
+spigot - a rate limiter for aggregating syndicated content to pump.io
   (c) 2011-2013 Nathan D. Smith <nathan@smithfam.info>
   http://nathan.smithfam.info/spigot.html
 
 spigot depends on Python 2.6 or higher and the following non-standard libraries:  
 
-- oauth >= 1.0 from <http://oauth.googlecode.com/svn/code/python/>
+- pypump >= 0.2 <https://pypi.python.org/pypi/PyPump>
 - Universal Feed Parser >= 5.0 <http://www.feedparser.org/>
   
 To use spigot, invoke it from the command line

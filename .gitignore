@@ -4,3 +4,5 @@ spigot.json
 .py/*
 *.pyc
 *.old
+dist/
+MANIFEST

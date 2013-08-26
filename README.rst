@@ -1,0 +1,129 @@
+=================================================
+spigot - rate-limited feed aggregation to pump.io
+=================================================
+
+About Spigot
+============
+
+Spigot takes syndicated content feeds and posts them to pump.io
+accounts at a limited rate. This way you can syndicate content to a
+pump.io account without worrying about flooding the account when
+updates to the feed are frequent.
+
+First you set up connections to one or more pump.io accounts using
+OAuth. Then you add RSS or Atom feeds, specifying which account to
+post to, the maximum post frequency, and the format of the posted
+message. Each time spigot runs, it checks the feeds for new posts, and
+determines whether or not a new item should be posted based on the
+specified interval. Spigot can be run in a cron job (or manually) to
+make regular posts.
+
+Spigot is inspired by Tricklepost and Brdcst.it. 
+
+
+Requirements
+============
+
+spigot depends on Python 2.6 or higher and the following non-standard libraries
+
+- pypump >= 0.2 <https://pypi.python.org/pypi/PyPump>
+- Universal Feed Parser >= 5.0 <http://www.feedparser.org/>
+
+  
+Installation
+============
+
+You can install spigot via pip:
+
+    $ pip install spigot
+
+Or you can clone the repo and install manually:
+
+    $ python setup.py install
+
+
+Configuration
+=============
+To configure spigot for first use, run it from the command-line:
+    $ spigot.py
+
+You will be prompted to configure one account and one feed.
+
+To subsequently add an account:
+    $ spigot.py --add-account
+
+To add a new feed:
+    $ spigot.py --add-feed
+
+
+Running
+=======
+
+After initial configuration, running spigot will poll your feeds and post to
+the configured accounts if the intervals allow. Running without specifying any
+options will result in no console output unless there are warnings or errors.
+This is optimal for running spigot as a cron job. To view more verbose logging,
+you can specify the --log-level option.
+
+
+Cron
+====
+
+Spigot can be run as a cron job to make sure that the flow of posts is regular.
+Here is an example crontab entry to run every 10 minutes:
+
+    10 * * * * cd ~/spigot; spigot.py
+
+Remember, spigot looks for its database and configuration file in the current
+working directory.
+
+
+FAQ
+===
+
+Where does Spigot store its configuration files and database?
+-------------------------------------------------------------
+
+Spigot stores its configuration (spigot.json) and database (spigot.db)
+in the working directory from which it is invoked. If you are running
+Spigot from a cron job, you'll want to first cd into the directory
+containing these.
+
+How often should I run Spigot?
+------------------------------
+
+There are a couple factors which weigh on this. First, you want to run
+it often enough so that catches all of the posts in the feeds it is
+polling. For example, if you are polling a feed which lists 10 items
+and is updated about 5 times per hour, you need to run Spigot at least
+every 2 hours to catch all of those posts in its database.
+
+Second, you'll want to run Spigot more often than the shortest
+interval in your configuration. If you run spigot less often than the
+shortest interval, posts will effectively happen only as often as
+Spigot runs.
+
+In brief, Spigot should run more often than you want to actually post.
+
+
+Credits
+=======
+
+(c) 2011-2013 Nathan D. Smith <nathan@smithfam.info>
+
+
+License
+=======
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, see <http://www.gnu.org/licenses/>.

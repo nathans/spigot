@@ -9,15 +9,18 @@ Spigot is inspired by [[https://github.com/zcopley/tricklepost][Tricklepost]] an
 *** >= Python 2.6
 *** >= [[http://pypi.python.org/pypi/argparse/1.2.1][Argparse]] 1.2.1 (bundled with Python 2.7 or higher)
 *** >= [[http://pypi.python.org/pypi/feedparser/5.1.2][Feedparser]] 5.2.1
-*** >= [[https://pypi.python.org/pypi/PyPump/][PyPump]] 0.1.7a
-** Download
-You can obtain spigot in one of two ways:
-*** Clone the [[https://gitorious.org/spigot][git repo]]
-*** Download and extract a [[https://gitorious.org/spigot/spigot/archive-tarball/master][tarball]]
+*** >= [[https://pypi.python.org/pypi/PyPump/][PyPump]] 0.2
 ** Installation
-Spigot runs from its own working directory. If you have pip, you can install the requirements using =pip install -r requirements.txt=.
+You can install spigot via pip:
+
+    =$ pip install spigot=
+
+Or if you have cloned the repo, it can be manually installed:
+
+    =$ python setup.py install=
+
 ** Running
-The first time you run Spigot, it will prompt you to add at least one account and one feed. For further options, pleas run =python spigot.py -h=.
+The first time you run Spigot, it will prompt you to add at least one account and one feed. For further options, pleas run =spigot.py -h=.
 ** Credits
 Spigot is (c) 2011-2013 by [[mailto:nathan@smithfam.info][Nathan D. Smith]].
 ** License

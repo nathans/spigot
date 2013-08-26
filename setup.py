@@ -5,11 +5,11 @@ from distutils.core import setup
 setup(name='spigot',
       version='2.0',
       description='Rate-limited feed aggregation to pump.io',
-      long_description=open("README").read(),
+      long_description=open("README.rst").read(),
       author='Nathan D. Smith',
       author_email='nathan@smithfam.info',
       url='http://nathan.smithfam.info/spigot.html',
-      py_modules=['spigot.py'],
+      scripts=['spigot.py'],
       license="GPLv3",
       install_requires=[
           "pypump>=0.2",

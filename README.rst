@@ -77,9 +77,9 @@ Cron
 ====
 
 Spigot can be run as a cron job to make sure that the flow of posts is regular.
-Here is an example crontab entry to run every 10 minutes:
+Here is an example crontab entry to run every at the 10th minute of each hour:
 
-    */10 * * * * cd ~/spigot; spigot.py
+    10 * * * * cd ~/spigot; spigot.py
 
 Remember, spigot looks for its database and configuration file in the current
 working directory.

@@ -26,8 +26,13 @@ Requirements
 
 spigot depends on Python 2.6 or higher and the following non-standard libraries
 
-- pypump >= 0.2 <https://pypi.python.org/pypi/PyPump>
-- Universal Feed Parser >= 5.0 <http://www.feedparser.org/>
+- pypump >= 0.2 https://pypi.python.org/pypi/PyPump
+- Universal Feed Parser >= 5.0 http://www.feedparser.org/
+
+Git Repo
+========
+
+Spigot's code is hosted on Gitorious: http://gitorious.org/spigot
 
   
 Installation
@@ -35,11 +40,13 @@ Installation
 
 You can install spigot via pip:
 
-    $ pip install spigot
+    $ sudo pip install spigot
 
-Or you can clone the repo and install manually:
+Or you can clone the git repo and install manually:
 
-    $ python setup.py install
+    $ sudo python setup.py install
+
+If you are using a virtualenv, you can omit the sudo.
 
 
 Configuration
@@ -72,7 +79,7 @@ Cron
 Spigot can be run as a cron job to make sure that the flow of posts is regular.
 Here is an example crontab entry to run every 10 minutes:
 
-    10 * * * * cd ~/spigot; spigot.py
+    */10 * * * * cd ~/spigot; spigot.py
 
 Remember, spigot looks for its database and configuration file in the current
 working directory.

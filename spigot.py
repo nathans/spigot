@@ -36,12 +36,18 @@ import urllib
 # 3rd-party modules
 import feedparser
 from pypump import PyPump
+from pypump import Client
+
+
+def simple_verifier(self, url):
+    print 'Please follow the instructions at the following URL:'
+    print url
+    return raw_input("Verifier: ")
 
 
 class SpigotConfig(dict):
-    """Extends the built-in dict type to provide a configuration interface 
-    for Spigot, keeping track of feeds polled and accounts configured for 
-    posting.
+    """Extends the built-in dict type to provide a configuration interface for
+    Spigot, keeping track of feeds polled and accounts configured for posting.
     """
 
     def __init__(self, path="spigot.json"):
@@ -72,6 +78,7 @@ class SpigotConfig(dict):
             logging.exception("Could not save configuration file")
             sys.exit(2)
 
+
     def add_user(self):
         "Interactively add a new user to the configuration."
 
@@ -81,7 +88,11 @@ class SpigotConfig(dict):
         print "Adding user"
         webfinger = raw_input("Webfinger ID (e.g. bob@identi.ca): ")
         # Initialize the Oauth relationship
-        pump = PyPump(webfinger,client_name="Spigot")
+        client = Client(
+            webfinger=webfinger,
+            name="Spigot",
+            type="native")
+        pump = PyPump(client, verifier_callback=simple_verifier)
         # Now PyPump will walk the user through registration
         # With that complete, retrieve relevant keys and secrets
         credentials = pump.get_registration()
@@ -416,12 +427,17 @@ class SpigotPost():
             unposted_items = self._spigotdb.get_unposted_items(feed)
             # Initialize Pump.IO connection here
             ac = self._config["accounts"][account]
-            pump = PyPump(account,
-                          client_name="Spigot",
-                          key=ac["consumer_key"],
-                          secret=ac["consumer_secret"],
-                          token=ac["oauth_token"],
-                          token_secret=ac["oauth_token_secret"])
+            client = Client(
+                webfinger=account,
+                type="native",
+                name="Spigot",
+                key=ac["consumer_key"],
+                secret=ac["consumer_secret"])
+            pump = PyPump(
+                client=client,
+                token=ac["oauth_token"],
+                secret=ac["oauth_token_secret"],
+                verifier_callback=simple_verifier)
 
             while self._spigotfeed.feed_ok_to_post(feed):
                 try:
@@ -439,7 +455,6 @@ class SpigotPost():
                                  % (item_hash,feed,account))
                     new_note = pump.Note(message)
                     new_note.to = pump.Public
-                    new_note.cc = pump.Followers
                     new_note.send()
                     self._spigotdb.mark_posted(item_hash)
                 except:

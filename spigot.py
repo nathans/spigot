@@ -39,7 +39,7 @@ from pypump import PyPump
 from pypump import Client
 
 
-def simple_verifier(self, url):
+def simple_verifier(url):
     print 'Please follow the instructions at the following URL:'
     print url
     return raw_input("Verifier: ")

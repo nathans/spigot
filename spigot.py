@@ -343,7 +343,11 @@ class SpigotFeeds():
             logging.debug("    Title: %s" % title)
             link = p.entries[i].link
             logging.debug("    Link: %s" % link)
-            date = p.entries[i].published_parsed
+            # Check for existence of published_parsed, fail back to updated
+            if 'published_parsed' in p.entries[i]:
+                date = p.entries[i].published_parsed
+            else:
+                date = p.entries[i].updated_parsed
             date_struct = datetime.fromtimestamp(mktime(date))
             logging.debug("    Date: %s" % datetime.isoformat(date_struct))
             # Create a md5 hash of title and link, so that we can

@@ -26,7 +26,7 @@ Requirements
 
 spigot depends on Python 2.6 or higher and the following non-standard libraries
 
-- pypump >= 0.2 https://pypi.python.org/pypi/PyPump
+- pypump >= 0.5 https://pypi.python.org/pypi/PyPump
 - Universal Feed Parser >= 5.0 http://www.feedparser.org/
 
 Git Repo
@@ -116,7 +116,7 @@ In brief, Spigot should run more often than you want to actually post.
 Credits
 =======
 
-(c) 2011-2013 Nathan D. Smith <nathan@smithfam.info>
+(c) 2011-2014 Nathan D. Smith <nathan@smithfam.info>
 
 
 License

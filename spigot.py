@@ -253,8 +253,8 @@ class SpigotDB():
         
         curs = self._db.cursor()
         curs.execute("insert into items(feed, link, message, date) \
-            values (?, ?, ?, ?, ?)", (feed_url, link, message, date))
-        logging.debug("    Added item %s to database" % item_link)
+            values (?, ?, ?, ?)", (feed_url, link, message, date))
+        logging.debug("    Added item %s to database" % link)
         curs.close()
         
         self._db.commit()
@@ -354,10 +354,11 @@ class SpigotFeeds():
             logging.debug("    Link: %s" % link)
             # Craft the message based feed format string
             # TODO
-            message = self._config["feeds"][feed]["format"]
+            message = self._config["feeds"][url]["format"]
             # Store a list of tuples containing format string and value
             replaces = []
-            fields = 
+            field_re = re.compile("%\w+%")
+            fields = field_re.findall(message)
             for raw_field in fields:
                 # Trim the % character from format
                 field = raw_field[1:-1]
@@ -368,7 +369,7 @@ class SpigotFeeds():
                 replaces.append( (raw_field, value) )
             # Fill in the message format with actual values
             for string, val in replaces:
-                message.replace(string, val)
+                message = message.replace(string, val)
             logging.debug("    Message: %s" % message)
             # Check to see if item has already entered the database
             if not self._spigotdb.check_link(link):
@@ -413,18 +414,6 @@ class SpigotPost():
         self._config = spigot_config
         self._spigotfeed = spigot_feed
 
-    def _format_message(self, feed, link, title, form):
-        # TODO Allow arbitrary insertion of feedparser properties between %%
-        """Return a string formatted according to the feed's configuration.
-        
-        Replacement strings:
-        $t : title
-        $l : link"""
-        
-        message = form.replace("$t",title)
-        message = message.replace("$l",link)
-        return message
-
     def post_items(self):
         """Handle the posting of unposted items.
         
@@ -460,18 +449,17 @@ class SpigotPost():
                 except:
                     # Escape the loop if there are no new posts waiting
                     break
+                feed = item[0]
                 link = item[1]
-                title = item[2]
-                item_link = item[3]
-                message = self._format_message(feed, link, title, form)
+                message = item[2]
 
                 try:
                     logging.info("  Posting item %s from %s to account %s" 
-                                 % (item_link,feed,account))
+                                 % (link,feed,account))
                     new_note = pump.Note(message)
                     new_note.to = pump.Public
                     new_note.send()
-                    self._spigotdb.mark_posted(item_link)
+                    self._spigotdb.mark_posted(link)
                 except:
                     logging.exception("  Unable to post item")
 

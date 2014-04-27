@@ -72,7 +72,7 @@ class SpigotConfig(dict):
     def save(self):
         "Convert the state of the SpigotConfig dict to json and save."
 
-        logging.debug("Saving spigot.json")
+        logging.debug("Saving %s" % self.config_file)
         try:
             open(self.config_file, "w").write(json.dumps(self, indent=4))
         except IOError:
@@ -126,6 +126,13 @@ class SpigotConfig(dict):
 
         print "Adding feed..."
         url = raw_input("Feed URL: ")
+        # Test feed for presence, validity
+        test_feed = None
+        try:
+            test_feed = feedparser.parse(url)
+            logging.debug("Successfully parsed feed %s" % url)
+        except:
+            logging.warning("Could not parse feed %s" % url)
         accounts = self["accounts"].keys()
         print "Choose an account:"
         for i in range(len(accounts)):
@@ -149,11 +156,16 @@ class SpigotConfig(dict):
                 interval = int(raw_inter)
                 valid_interval = True
             except:
-                print "Invalide interval specified."
+                print "Invalid interval specified."
         print """Spigot formats your outgoing posts based on fields in the feed
-              being scanned. Use the following substitutions:
-              $t - title
-              $l - link"""
+              being scanned. Specify the field name surrounded by the '%'
+              character to have it replaced with the corresponding value for the
+              item (e.g. %title% or %link)."""
+        if test_feed:
+            print """The following fields are present in an example item in
+                     this feed:"""
+            for field in test_feed["items"][0].keys():
+                print field
         form = raw_input("Format: ")
         
         # Put it all together

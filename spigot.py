@@ -2,7 +2,8 @@
 #
 # spigot is a rate limiter for aggregating syndicated content to pump.io
 #
-# (c) 2011-2013 by Nathan D. Smith <nathan@smithfam.info>
+# (c) 2011-2014 by Nathan D. Smith <nathan@smithfam.info>
+# (c) 2014 Craig Maloney <craig@decafbad.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +21,6 @@
 # Standard library imports
 import argparse
 from datetime import datetime, timedelta
-import hashlib
 try:
     import json
 except ImportError:
@@ -38,12 +38,13 @@ import feedparser
 from pypump import PyPump
 from pypump import Client
 
-
+# Helper functions
 def simple_verifier(url):
     print 'Please follow the instructions at the following URL:'
     print url
     return raw_input("Verifier: ")
 
+#Spigot classes
 
 class SpigotConfig(dict):
     """Extends the built-in dict type to provide a configuration interface for
@@ -77,7 +78,6 @@ class SpigotConfig(dict):
         except IOError:
             logging.exception("Could not save configuration file")
             sys.exit(2)
-
 
     def add_user(self):
         "Interactively add a new user to the configuration."
@@ -192,6 +192,7 @@ class SpigotConfig(dict):
             logging.debug("  Added to list of feeds to poll")
         return feeds_to_poll
 
+
 class SpigotDB():
     """Handle database calls for Spigot."""
  
@@ -222,8 +223,8 @@ class SpigotDB():
 
         curs = self._db.cursor()
         # Figure out db tables based on tricklepost
-        create_query = """create table items (feed text, link text, title text,
-            hash text, date timestamp, posted timestamp)"""
+        create_query = """create table items (feed text, link text,
+                          message text, date timestamp, posted timestamp)"""
         curs.execute(create_query)
         self._db.commit()
         logging.debug("Initialized database tables")

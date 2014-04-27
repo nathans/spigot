@@ -28,6 +28,7 @@ spigot depends on Python 2.6 or higher and the following non-standard libraries
 
 - pypump >= 0.5 https://pypi.python.org/pypi/PyPump
 - Universal Feed Parser >= 5.0 http://www.feedparser.org/
+- argparse >= 1.0 (required for Python 2.6) 
 
 Git Repo
 ========
@@ -117,7 +118,7 @@ Credits
 =======
 
 (c) 2011-2014 Nathan D. Smith <nathan@smithfam.info>
-
+(c) 2014 Craig Maloney <craig@decafbad.net>
 
 License
 =======

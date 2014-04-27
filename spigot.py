@@ -236,25 +236,25 @@ class SpigotDB():
         self._db.close()
         logging.debug("Closed connection to database")
         
-    def check_hash(self, item_hash):
-        """Returns true if the specified hash is already in the database."""
+    def check_link(self, item_link):
+        """Returns true if the specified link is already in the database."""
         
         curs = self._db.cursor()
-        curs.execute("select * from items where hash=?", [item_hash])
+        curs.execute("select * from items where link=?", [item_link])
         if len(curs.fetchall()) > 0:
             return True
         else:
             return False
         curs.close()
             
-    def add_item(self, feed_url, link, title, item_hash, date):
+    def add_item(self, feed_url, link, message, date):
         """Add an item to the database with the given parameters. Return True
         if successful."""
         
         curs = self._db.cursor()
-        curs.execute("insert into items(feed, link, title, hash, date) \
-            values (?, ?, ?, ?, ?)", (feed_url, link, title, item_hash, date))
-        logging.debug("    Added item %s to database" % item_hash)
+        curs.execute("insert into items(feed, link, message, date) \
+            values (?, ?, ?, ?, ?)", (feed_url, link, message, date))
+        logging.debug("    Added item %s to database" % item_link)
         curs.close()
         
         self._db.commit()
@@ -272,16 +272,16 @@ class SpigotDB():
         curs.close()
         return unposted_items
 
-    def mark_posted(self, item_hash, date=None):
+    def mark_posted(self, item_link, date=None):
         """Mark the given item posted by setting its posted datetime to now."""
         
         if not date:
             date = datetime.utcnow()
         curs = self._db.cursor()
-        curs.execute("UPDATE items SET posted=? WHERE hash=?",
-            (date, item_hash))
+        curs.execute("UPDATE items SET posted=? WHERE link=?",
+            (date, item_link))
         logging.debug("  Updated posted time of item %s in database"
-            % item_hash)
+            % item_link)
         curs.close()
         self._db.commit()
     
@@ -334,7 +334,7 @@ class SpigotFeeds():
         # Get a list of items for the feed and compare it to the database
         num_items = len(p.entries)
         logging.debug("Found %d items in feed %s" % (num_items,url))
-        # Find out which encoding the feed uses to avoid problems with hashlib
+        # Find out which encoding the feed uses to avoid problems with linklib
         # below
         enc = p.encoding
         new_items = 0
@@ -351,19 +351,29 @@ class SpigotFeeds():
                 date = p.entries[i].updated_parsed
             date_struct = datetime.fromtimestamp(mktime(date))
             logging.debug("    Date: %s" % datetime.isoformat(date_struct))
-            # Create a md5 hash of title and link, so that we can
-            # easily tell duplicates in the feed. Could use guid for this, but
-            # I don't trust feeds to use it correctly.
-            h = hashlib.md5()
-            hash_input = "%s|%s" % (title, link)
-            h.update(hash_input.encode(enc))
-            item_hash = h.hexdigest()
-            logging.debug("    Hash: %s" % item_hash)
+            logging.debug("    Link: %s" % link)
+            # Craft the message based feed format string
+            # TODO
+            message = self._config["feeds"][feed]["format"]
+            # Store a list of tuples containing format string and value
+            replaces = []
+            fields = 
+            for raw_field in fields:
+                # Trim the % character from format
+                field = raw_field[1:-1]
+                if field in p.entries[i]:
+                    value = p.entries[i][field]
+                else:
+                    value = ""
+                replaces.append( (raw_field, value) )
+            # Fill in the message format with actual values
+            for string, val in replaces:
+                message.replace(string, val)
+            logging.debug("    Message: %s" % message)
             # Check to see if item has already entered the database
-            if not self._spigotdb.check_hash(item_hash):
+            if not self._spigotdb.check_link(link):
                 logging.debug("    Not in database")
-                self._spigotdb.add_item(url, link, title, item_hash,
-                    date_struct)
+                self._spigotdb.add_item(url, link, message, date_struct)
                 new_items += 1
             else:
                 logging.debug("    Already in database")
@@ -452,16 +462,16 @@ class SpigotPost():
                     break
                 link = item[1]
                 title = item[2]
-                item_hash = item[3]
+                item_link = item[3]
                 message = self._format_message(feed, link, title, form)
 
                 try:
                     logging.info("  Posting item %s from %s to account %s" 
-                                 % (item_hash,feed,account))
+                                 % (item_link,feed,account))
                     new_note = pump.Note(message)
                     new_note.to = pump.Public
                     new_note.send()
-                    self._spigotdb.mark_posted(item_hash)
+                    self._spigotdb.mark_posted(item_link)
                 except:
                     logging.exception("  Unable to post item")
 

@@ -326,6 +326,28 @@ class SpigotFeeds():
         self._spigotdb = db
         self._config = config
 
+    def format_message(self, feed, entry):
+        """Returns an outgoing message for the given entry based on the given 
+        feed's configured format."""
+
+        message = self._config["feeds"][feed]["format"]
+        # Store a list of tuples containing format string and value
+        replaces = []
+        field_re = re.compile("%\w+%")
+        fields = field_re.findall(message)
+        for raw_field in fields:
+            # Trim the % character from format
+            field = raw_field[1:-1]
+            if field in entry:
+                value = entry[field]
+            else:
+                value = ""
+            replaces.append( (raw_field, value) )
+        # Fill in the message format with actual values
+        for string, val in replaces:
+            message = message.replace(string, val)
+        return message
+
     def poll_feeds(self):
         """Check the configured feeds for new posts."""
         
@@ -365,23 +387,7 @@ class SpigotFeeds():
             logging.debug("    Date: %s" % datetime.isoformat(date_struct))
             logging.debug("    Link: %s" % link)
             # Craft the message based feed format string
-            # TODO
-            message = self._config["feeds"][url]["format"]
-            # Store a list of tuples containing format string and value
-            replaces = []
-            field_re = re.compile("%\w+%")
-            fields = field_re.findall(message)
-            for raw_field in fields:
-                # Trim the % character from format
-                field = raw_field[1:-1]
-                if field in p.entries[i]:
-                    value = p.entries[i][field]
-                else:
-                    value = ""
-                replaces.append( (raw_field, value) )
-            # Fill in the message format with actual values
-            for string, val in replaces:
-                message = message.replace(string, val)
+            message = self.format_message(url,p.entries[i])
             logging.debug("    Message: %s" % message)
             # Check to see if item has already entered the database
             if not self._spigotdb.check_link(link):

@@ -276,7 +276,7 @@ class SpigotDB():
         through to the specified statusnet account."""
         
         curs = self._db.cursor()
-        curs.execute("SELECT * FROM items where (posted is NULL AND feed=?) \
+        curs.execute("SELECT feed, link, message FROM items where (posted is NULL AND feed=?) \
             ORDER BY date ASC",[feed])
         unposted_items = curs.fetchall()
         num_items = len(unposted_items)

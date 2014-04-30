@@ -246,7 +246,7 @@ class SpigotDB():
         if not "message" in [col[1] for col in cols]:
             logging.error("Existing database not upgraded for Spigot 2.2")
             logging.error("Please upgrade the database using the utils/convert.py script found in the source repository.")
-        sys.exit(2)
+            sys.exit(2)
 
     def _init_db_tables(self):
         """Initialize the database if it is new"""

@@ -65,10 +65,12 @@ if __name__ == "__main__":
 
     # Transform config file
     changes = [ ("$t","%title%"), ("$l", "%link%") ]
-    conf_file = open(args.config,"w")
+    conf_file = open(args.config,"r")
     conf = conf_file.read()
+    conf_file.close()
     for old, new in changes:
         conf = conf.replace(old,new)
     logging.info("Writing modified config file")
-    conf_file.write(conf)
-    conf.close()
+    new_file = open(args.config,"w")
+    new_file.write(conf)
+    new_file.close()

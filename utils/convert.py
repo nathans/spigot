@@ -62,5 +62,15 @@ if __name__ == "__main__":
         a_curs.execute("UPDATE items SET message=? WHERE link=?", (format,link))
         a_curs.close()
         
+    logging.info("Commiting database")
     db.commit()
-        
+
+    # Transform config file
+    changes = [ ("$t","%title%"), ("$l", "%link%") ]
+    conf_file = open(args.config,"w")
+    conf = conf_file.read()
+    for old, new in changes:
+        conf = conf.replace(old,new)
+    logging.info("Writing modified config file")
+    conf_file.write(conf)
+    conf.close()

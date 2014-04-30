@@ -11,8 +11,6 @@ except ImportError:
 import sqlite3
 import sys
 
-import spigot
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--database",default="spigot.db")

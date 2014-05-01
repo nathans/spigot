@@ -70,12 +70,13 @@ class SpigotConfig(dict):
             logging.warning("Could not load configuration file")
         
         # Check for pre-2.2 formatted spigot configuration file
-        formats = [self["feeds"][feed]["format"] for feed in self["feeds"]]
-        for format in formats:
-            if ( ("$t" in format) or ("$l" in format) ):
-                logging.error("Existing config not upgraded for Spigot 2.2")
-                logging.error("Please upgrade the config using the utils/convert.py script found in the source repository.")
-                sys.exit(2)
+        if not self.no_config:
+            formats = [self["feeds"][feed]["format"] for feed in self["feeds"]]
+            for format in formats:
+                if ( ("$t" in format) or ("$l" in format) ):
+                    logging.error("Existing config not upgraded for Spigot 2.2")
+                    logging.error("Please upgrade the config using the utils/convert.py script found in the source repository.")
+                    sys.exit(2)
 
     def save(self):
         "Convert the state of the SpigotConfig dict to json and save."
@@ -239,14 +240,15 @@ class SpigotDB():
                 self._init_db_tables()
         
         # Test for pre-2.2 database structure
-        curs = self._db.cursor()
-        curs.execute("PRAGMA table_info(items);")
-        cols = curs.fetchall()
-        curs.close()
-        if not "message" in [col[1] for col in cols]:
-            logging.error("Existing database not upgraded for Spigot 2.2")
-            logging.error("Please upgrade the database using the utils/convert.py script found in the source repository.")
-            sys.exit(2)
+        if not new_db:
+            curs = self._db.cursor()
+            curs.execute("PRAGMA table_info(items);")
+            cols = curs.fetchall()
+            curs.close()
+            if not "message" in [col[1] for col in cols]:
+                logging.error("Existing database not upgraded for Spigot 2.2")
+                logging.error("Please upgrade the database using the utils/convert.py script found in the source repository.")
+                sys.exit(2)
 
     def _init_db_tables(self):
         """Initialize the database if it is new"""

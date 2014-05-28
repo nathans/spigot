@@ -359,7 +359,14 @@ class SpigotFeeds():
             # Trim the % character from format
             field = raw_field[1:-1]
             if field in entry:
-                value = entry[field]
+                # Make a special exception for the content element, which in
+                # ATOM can appear multiple times per entry. Assume the element
+                # with index=0 is the desired value.
+                if field == "content":
+                    logging.debug("    'content' field in formatting string")
+                    value = entry.content[0].value
+                else:
+                    value = entry[field]
             else:
                 value = ""
             replaces.append( (raw_field, value) )

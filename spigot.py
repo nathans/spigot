@@ -395,9 +395,6 @@ class SpigotFeeds():
         # Get a list of items for the feed and compare it to the database
         num_items = len(p.entries)
         logging.debug("Found %d items in feed %s" % (num_items,url))
-        # Find out which encoding the feed uses to avoid problems with linklib
-        # below
-        enc = p.encoding
         new_items = 0
         for i in range(len(p.entries)):
             logging.debug("  Processing item %d" % i)

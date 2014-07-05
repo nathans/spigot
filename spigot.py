@@ -70,6 +70,7 @@ class SpigotConfig(dict):
             logging.warning("Could not load configuration file")
         
         # Check for pre-2.2 formatted spigot configuration file
+ 
         if not self.no_config:
             formats = [self["feeds"][feed]["format"] for feed in self["feeds"]]
             for format in formats:
@@ -84,18 +85,20 @@ class SpigotConfig(dict):
         logging.debug("Saving %s" % self.config_file)
         try:
             open(self.config_file, "w").write(json.dumps(self, indent=4))
+            return True
         except IOError:
             logging.exception("Could not save configuration file")
             sys.exit(2)
 
-    def add_user(self):
+    def add_user(self, webfinger=None):
         "Interactively add a new user to the configuration."
 
         self.load()
 
         user = {}
         print "Adding user"
-        webfinger = raw_input("Webfinger ID (e.g. bob@identi.ca): ")
+        if not webfinger:
+            webfinger = raw_input("Webfinger ID (e.g. bob@identi.ca): ")
         # Initialize the Oauth relationship
         client = Client(
             webfinger=webfinger,

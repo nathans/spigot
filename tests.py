@@ -8,14 +8,16 @@ import sqlite3
 
 import spigot
 
+
 class TestExistingConfig(unittest.TestCase):
     test_config_path = "utils/tests/spigot.json"
-    
+
     def setUp(self):
         self.config = spigot.SpigotConfig(self.test_config_path)
 
     def tearDown(self):
         self.config = None
+
 
 class TestNewConfig(unittest.TestCase):
     test_config_path = "test.json"
@@ -30,7 +32,6 @@ class TestNewConfig(unittest.TestCase):
     def test_add_user(self):
         pass
 
-
     def test_add_feed(self):
         pass
 
@@ -43,6 +44,7 @@ class TestNewConfig(unittest.TestCase):
         if os.path.exists(self.test_config_path):
             os.remove(self.test_config_path)
 
+
 class SpigotFeedsTest(unittest.TestCase):
     def setUp(self):
         pass
@@ -53,8 +55,8 @@ class SpigotFeedsTest(unittest.TestCase):
 
 class SpigotDBTest(unittest.TestCase):
     test_db_path = "test.db"
-    db_schema = [("feed","text"), ("link","text"), ("message","text"),
-                 ("date","timestamp"), ("posted","timestamp")]
+    db_schema = [("feed", "text"), ("link", "text"), ("message", "text"),
+                 ("date", "timestamp"), ("posted", "timestamp")]
 
     def setUp(self):
         self.db = spigot.SpigotDB(path=self.test_db_path)
@@ -74,14 +76,14 @@ class SpigotDBTest(unittest.TestCase):
 
         # Testing initialization of new DB
         self.assertTrue(os.path.exists(self.test_db_path))
-        dbtest = sqlite3.connect(self.test_db_path,
-            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        det_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        dbtest = sqlite3.connect(self.test_db_path, detect_types=det_types)
         curs = dbtest.cursor()
         curs.execute("PRAGMA table_info(items);")
         cols = curs.fetchall()
         curs.close()
         for col in cols:
-            self.assertIn((col[1],col[2]),self.db_schema)
+            self.assertIn((col[1], col[2]), self.db_schema)
 
         # Testing check_link() ; expecting False as the DB should be empty
         self.assertFalse(self.db.check_link(new_link))
@@ -96,17 +98,17 @@ class SpigotDBTest(unittest.TestCase):
 
         # Testing get_unposted_items()
         test_unposted = self.db.get_unposted_items(feed=new_url)
-        self.assertGreater(len(test_unposted),0)
+        self.assertGreater(len(test_unposted), 0)
         item = test_unposted[0]
-        self.assertEqual(item[0],new_url)
-        self.assertEqual(item[1],new_link)
-        self.assertEqual(item[2],new_message)
+        self.assertEqual(item[0], new_url)
+        self.assertEqual(item[1], new_link)
+        self.assertEqual(item[2], new_message)
 
         # Testing mark_posted() and get_latest_post()
         test_date = datetime.datetime.now()
-        self.db.mark_posted(item_link=new_link,date=test_date)
+        self.db.mark_posted(item_link=new_link, date=test_date)
         latest = self.db.get_latest_post(feed=new_url)
-        self.assertEqual(latest,test_date)
+        self.assertEqual(latest, test_date)
 
 
 if __name__ == '__main__':
@@ -115,4 +117,4 @@ if __name__ == '__main__':
 # TODO
 # Config
 # - Upgrade of spigot config
-# - 
+# -

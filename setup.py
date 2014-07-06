@@ -23,8 +23,4 @@ setup(name='spigot',
                    "Programming Language :: Python :: 2.7",
                    "Operating System :: OS Independent",
                    "Operating System :: POSIX",
-                   "Intended Audience :: End Users/Desktop",
-                   "License :: OSI Approved",
-                   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-                   "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",]    
-     )
+                   "Intended Audience :: End Users/Desktop"])

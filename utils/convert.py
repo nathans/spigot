@@ -13,11 +13,11 @@ import sys
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--database",default="spigot.db")
-    parser.add_argument("--config",default="spigot.json")
+    parser.add_argument("--database", default="spigot.db")
+    parser.add_argument("--config", default="spigot.json")
     args = parser.parse_args()
 
-    logging.basicConfig(level="INFO", 
+    logging.basicConfig(level="INFO",
                         format='%(asctime)s %(levelname)s: %(message)s')
     # Set up configuration object
     try:
@@ -26,9 +26,9 @@ if __name__ == "__main__":
         logging.warning("Could not load configuration file")
 
     # Set up database object
+    det_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
     try:
-        db = sqlite3.connect(args.database,
-                    detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        db = sqlite3.connect(args.database, detect_types=det_types)
     except:
         logging.exception("Could not connect to database %s" % args.database)
         sys.exit(2)
@@ -51,26 +51,27 @@ if __name__ == "__main__":
         logging.info("Item: %s" % link)
         format = config["feeds"][feed]["format"]
 
-        transforms = [ ("$t", title), ("$l", link) ]
+        transforms = [("$t", title), ("$l", link)]
         for string, val in transforms:
             format = format.replace(string, val)
 
         logging.info("  Message: %s" % format)
         a_curs = db.cursor()
-        a_curs.execute("UPDATE items SET message=? WHERE link=?", (format,link))
+        a_curs.execute("UPDATE items SET message=? WHERE link=?",
+                       (format, link))
         a_curs.close()
-        
+
     logging.info("Commiting database")
     db.commit()
 
     # Transform config file
-    changes = [ ("$t","%title%"), ("$l", "%link%") ]
-    conf_file = open(args.config,"r")
+    changes = [("$t", "%title%"), ("$l", "%link%")]
+    conf_file = open(args.config, "r")
     conf = conf_file.read()
     conf_file.close()
     for old, new in changes:
-        conf = conf.replace(old,new)
+        conf = conf.replace(old, new)
     logging.info("Writing modified config file")
-    new_file = open(args.config,"w")
+    new_file = open(args.config, "w")
     new_file.write(conf)
     new_file.close()

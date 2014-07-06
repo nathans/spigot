@@ -31,20 +31,18 @@ import re
 import sqlite3
 import sys
 from time import mktime
-import urllib
 
 # 3rd-party modules
 import feedparser
 from pypump import PyPump
 from pypump import Client
 
-# Helper functions
+
 def simple_verifier(url):
     print 'Please follow the instructions at the following URL:'
     print url
     return raw_input("Verifier: ")
 
-#Spigot classes
 
 class SpigotConfig(dict):
     """Extends the built-in dict type to provide a configuration interface for
@@ -68,15 +66,16 @@ class SpigotConfig(dict):
             self.update(json.loads(open(self.config_file, "r").read()))
         except IOError:
             logging.warning("Could not load configuration file")
-        
+
         # Check for pre-2.2 formatted spigot configuration file
- 
+
         if not self.no_config:
             formats = [self["feeds"][feed]["format"] for feed in self["feeds"]]
             for format in formats:
-                if ( ("$t" in format) or ("$l" in format) ):
-                    logging.error("Existing config not upgraded for Spigot 2.2")
-                    logging.error("Please upgrade the config using the utils/convert.py script found in the source repository.")
+                if (("$t" in format) or ("$l" in format)):
+                    logging.error("Config not upgraded for Spigot 2.2")
+                    logging.error("Please upgrade the config using the\
+                    utils/convert.py script found in the source repository.")
                     sys.exit(2)
 
     def save(self):
@@ -129,7 +128,7 @@ class SpigotConfig(dict):
 
         # TODO Add feature to specify to and cc for each feed
         self.load()
-        if not "accounts" in self:
+        if "accounts" not in self:
             logging.error("No accounts configured.")
             sys.exit(2)
         account = None
@@ -148,7 +147,7 @@ class SpigotConfig(dict):
         accounts = self["accounts"].keys()
         print "Choose an account:"
         for i in range(len(accounts)):
-            print "%d. %s" % (i,accounts[i])
+            print "%d. %s" % (i, accounts[i])
 
         valid_account = False
         while not valid_account:
@@ -171,21 +170,21 @@ class SpigotConfig(dict):
                 print "Invalid interval specified."
         print """Spigot formats your outgoing posts based on fields in the feed
               being scanned. Specify the field name surrounded by the '%'
-              character to have it replaced with the corresponding value for the
-              item (e.g. %title% or %link)."""
+              character to have it replaced with the corresponding value for
+              the item (e.g. %title% or %link)."""
         if test_feed:
             print """The following fields are present in an example item in
                      this feed:"""
             for field in test_feed["items"][0].keys():
                 print field
         form = raw_input("Format: ")
-        
+
         # Put it all together
         feed = {}
         feed["account"] = account
         feed["interval"] = interval
         feed["format"] = form
-        
+
         if "feeds" in self:
             self["feeds"][url] = feed
         else:
@@ -199,7 +198,7 @@ class SpigotConfig(dict):
         """Sets instance variable 'feeds' of feeds to check for new posts.
         Formatted in a tuple in the form of (url, account, interval, format)
         """
-        
+
         feeds = self["feeds"]
         feeds_to_poll = []
         feeds_num = len(feeds)
@@ -219,7 +218,7 @@ class SpigotConfig(dict):
 
 class SpigotDB():
     """Handle database calls for Spigot."""
- 
+
     def __init__(self, path="spigot.db"):
         self.path = path
         self._connect()
@@ -232,25 +231,26 @@ class SpigotDB():
         if not os.path.exists(self.path):
             new_db = True
             logging.debug("Database file %s does not exist" % self.path)
+        det_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         try:
-            self._db = sqlite3.connect(self.path,
-                detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+            self._db = sqlite3.connect(self.path, detect_types=det_types)
         except:
             logging.exception("Could not connect to database %s" % self.path)
             sys.exit(2)
-            
+
         if new_db:
                 self._init_db_tables()
-        
+
         # Test for pre-2.2 database structure
         if not new_db:
             curs = self._db.cursor()
             curs.execute("PRAGMA table_info(items);")
             cols = curs.fetchall()
             curs.close()
-            if not "message" in [col[1] for col in cols]:
+            if "message" not in [col[1] for col in cols]:
                 logging.error("Existing database not upgraded for Spigot 2.2")
-                logging.error("Please upgrade the database using the utils/convert.py script found in the source repository.")
+                logging.error("Please upgrade the database using the \
+                utils/convert.py script found in the source repository.")
                 sys.exit(2)
 
     def _init_db_tables(self):
@@ -264,16 +264,16 @@ class SpigotDB():
         self._db.commit()
         logging.debug("Initialized database tables")
         curs.close()
-        
+
     def close(self):
         """Cleanup after the db is no longer needed."""
-        
+
         self._db.close()
         logging.debug("Closed connection to database")
-        
+
     def check_link(self, item_link):
         """Returns true if the specified link is already in the database."""
-        
+
         curs = self._db.cursor()
         curs.execute("select * from items where link=?", [item_link])
         if len(curs.fetchall()) > 0:
@@ -281,59 +281,59 @@ class SpigotDB():
         else:
             return False
         curs.close()
-            
+
     def add_item(self, feed_url, link, message, date):
         """Add an item to the database with the given parameters. Return True
         if successful."""
-        
+
         curs = self._db.cursor()
         curs.execute("insert into items(feed, link, message, date) \
             values (?, ?, ?, ?)", (feed_url, link, message, date))
         logging.debug("    Added item %s to database" % link)
         curs.close()
-        
+
         self._db.commit()
         return True
-        
+
     def get_unposted_items(self, feed):
         """Return a list of items in the database which have yet to be sent
         through to the specified statusnet account."""
-        
+
         curs = self._db.cursor()
         curs.execute("SELECT feed, link, message FROM items where (posted is NULL AND feed=?) \
-            ORDER BY date ASC",[feed])
+            ORDER BY date ASC", [feed])
         unposted_items = curs.fetchall()
         num_items = len(unposted_items)
-        logging.debug("  Found %d unposted items in %s" % (num_items,feed))
+        logging.debug("  Found %d unposted items in %s" % (num_items, feed))
         curs.close()
         return unposted_items
 
     def mark_posted(self, item_link, date=None):
         """Mark the given item posted by setting its posted datetime to now."""
-        
+
         if not date:
             date = datetime.utcnow()
         curs = self._db.cursor()
         curs.execute("UPDATE items SET posted=? WHERE link=?",
-            (date, item_link))
+                     (date, item_link))
         logging.debug("  Updated posted time of item %s in database"
-            % item_link)
+                      % item_link)
         curs.close()
         self._db.commit()
-    
+
     def get_latest_post(self, feed):
         """Return the datetime of the most recent item posted by spigot of the
         specified feed. If none have been posted, return None"""
-        
+
         curs = self._db.cursor()
         curs.execute("SELECT posted FROM items WHERE \
             (feed=? AND posted is not NULL) ORDER BY posted DESC LIMIT 1",
-            [feed])    
+                     [feed])
         result = curs.fetchone()
         curs.close()
         if result:
-            logging.debug("  Latest post for feed %s is %s" % (feed, 
-                result[0]))
+            logging.debug("  Latest post for feed %s is %s" % (feed,
+                                                               result[0]))
             return result[0]
         else:
             logging.debug("  No items from feed %s have been posted" % feed)
@@ -342,7 +342,7 @@ class SpigotDB():
 
 class SpigotFeeds():
     """
-    Handle the polling the specified feeds for new posts. Add new posts to 
+    Handle the polling the specified feeds for new posts. Add new posts to
     database in preparation for posting to the specified Pump.io accounts.
     """
 
@@ -351,7 +351,7 @@ class SpigotFeeds():
         self._config = config
 
     def format_message(self, feed, entry):
-        """Returns an outgoing message for the given entry based on the given 
+        """Returns an outgoing message for the given entry based on the given
         feed's configured format."""
 
         message = self._config["feeds"][feed]["format"]
@@ -373,7 +373,7 @@ class SpigotFeeds():
                     value = entry[field]
             else:
                 value = ""
-            replaces.append( (raw_field, value) )
+            replaces.append((raw_field, value))
         # Fill in the message format with actual values
         for string, val in replaces:
             message = message.replace(string, val)
@@ -381,7 +381,7 @@ class SpigotFeeds():
 
     def poll_feeds(self):
         """Check the configured feeds for new posts."""
-        
+
         feeds_to_poll = self._config.get_feeds()
         for url, account, interval, form in feeds_to_poll:
             self.scan_feed(url)
@@ -398,7 +398,7 @@ class SpigotFeeds():
             return None
         # Get a list of items for the feed and compare it to the database
         num_items = len(p.entries)
-        logging.debug("Found %d items in feed %s" % (num_items,url))
+        logging.debug("Found %d items in feed %s" % (num_items, url))
         new_items = 0
         for i in range(len(p.entries)):
             logging.debug("  Processing item %d" % i)
@@ -415,7 +415,7 @@ class SpigotFeeds():
             logging.debug("    Date: %s" % datetime.isoformat(date_struct))
             logging.debug("    Link: %s" % link)
             # Craft the message based feed format string
-            message = self.format_message(url,p.entries[i])
+            message = self.format_message(url, p.entries[i])
             logging.debug("    Message: %s" % message)
             # Check to see if item has already entered the database
             if not self._spigotdb.check_link(link):
@@ -429,7 +429,7 @@ class SpigotFeeds():
     def feed_ok_to_post(self, feed):
         """Return True if the given feed is OK to post given its configured
         interval."""
-        
+
         interval = int(self._config["feeds"][feed]["interval"])
         delta = timedelta(minutes=interval)
         posted = self._spigotdb.get_latest_post(feed)
@@ -437,7 +437,7 @@ class SpigotFeeds():
             next = posted + delta
             now = datetime.utcnow()
             if now >= next:
-                #post it                
+                # post it
                 logging.debug("  Feed %s is ready for a new post" % feed)
                 return True
             else:
@@ -448,13 +448,13 @@ class SpigotFeeds():
             # Nothing has been posted for this feed, so it is OK to post
             logging.debug("  Feed %s is ready for a new post" % feed)
             return True
-        
+
 
 class SpigotPost():
-    """Handle the posting of syndicated content stored in the SpigotDB to the 
+    """Handle the posting of syndicated content stored in the SpigotDB to the
     pump.io account.
     """
-    
+
     def __init__(self, db, spigot_config, spigot_feed):
         self._spigotdb = db
         self._config = spigot_config
@@ -462,16 +462,16 @@ class SpigotPost():
 
     def post_items(self):
         """Handle the posting of unposted items.
-        
+
         Iterate over each pollable feed and check to see if it is permissible
         to post new items based on interval configuration. Loop while it is OK,
-        and terminate the loop when it becomes not OK. Presumably one or none 
+        and terminate the loop when it becomes not OK. Presumably one or none
         will be posted each time this method runs."""
-        
+
         for feed, account, interval, form in self._config.get_feeds():
-            if not account in self._config["accounts"]:
-                logging.error("Account %s not configured, unable to post." 
-                                  % account)
+            if account not in self._config["accounts"]:
+                logging.error("Account %s not configured, unable to post."
+                              % account)
                 sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
@@ -500,8 +500,8 @@ class SpigotPost():
                 message = item[2]
 
                 try:
-                    logging.info("  Posting item %s from %s to account %s" 
-                                 % (link,feed,account))
+                    logging.info("  Posting item %s from %s to account %s"
+                                 % (link, feed, account))
                     new_note = pump.Note(message)
                     new_note.to = pump.Public
                     new_note.send()
@@ -513,16 +513,16 @@ class SpigotPost():
 if __name__ == "__main__":
     spigot_config = SpigotConfig()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--add-account","-a",action="store_true")
-    parser.add_argument("--add-feed","-f",action="store_true")
-    log_levels = ["DEBUG","INFO","WARNING","ERROR","CRITICAL"]
-    parser.add_argument("--log-level","-l",choices=log_levels,
+    parser.add_argument("--add-account", "-a", action="store_true")
+    parser.add_argument("--add-feed", "-f", action="store_true")
+    log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+    parser.add_argument("--log-level", "-l", choices=log_levels,
                         default="WARNING")
     args = parser.parse_args()
 
     # Logging configuration
-    logging.basicConfig(level=args.log_level, \
-                            format='%(asctime)s %(levelname)s: %(message)s')
+    logging.basicConfig(level=args.log_level,
+                        format='%(asctime)s %(levelname)s: %(message)s')
     logging.debug("spigot startup")
 
     # No configuration present, doing welcom wagon

@@ -293,6 +293,7 @@ class SpigotDB():
         curs.close()
         
         self._db.commit()
+        return True
         
     def get_unposted_items(self, feed):
         """Return a list of items in the database which have yet to be sent

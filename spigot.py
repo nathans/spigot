@@ -55,6 +55,19 @@ class SpigotConfig(dict):
         if os.path.exists(self.config_file):
             self.no_config = False
 
+    def check_old_config(self):
+        """Check existing configuration for pre-2.2 format and return True
+        if the config needs to be updated."""
+
+        formats = [self["feeds"][feed]["format"] for feed in self["feeds"]]
+        for format in formats:
+            if (("$t" in format) or ("$l" in format)):
+                logging.debug("Existing config reflects pre-2.2 format")
+                return True
+            else:
+                logging.debug("Existing config reflects post-2.2 format")
+                return False
+
     def load(self):
         """Load the spigot json config file from the working directory
         and import it into the SpigotConfig dict object."""
@@ -66,17 +79,6 @@ class SpigotConfig(dict):
             self.update(json.loads(open(self.config_file, "r").read()))
         except IOError:
             logging.warning("Could not load configuration file")
-
-        # Check for pre-2.2 formatted spigot configuration file
-
-        if not self.no_config:
-            formats = [self["feeds"][feed]["format"] for feed in self["feeds"]]
-            for format in formats:
-                if (("$t" in format) or ("$l" in format)):
-                    logging.error("Config not upgraded for Spigot 2.2")
-                    logging.error("Please upgrade the config using the\
-                    utils/convert.py script found in the source repository.")
-                    sys.exit(2)
 
     def save(self):
         "Convert the state of the SpigotConfig dict to json and save."
@@ -241,18 +243,6 @@ class SpigotDB():
         if new_db:
                 self._init_db_tables()
 
-        # Test for pre-2.2 database structure
-        if not new_db:
-            curs = self._db.cursor()
-            curs.execute("PRAGMA table_info(items);")
-            cols = curs.fetchall()
-            curs.close()
-            if "message" not in [col[1] for col in cols]:
-                logging.error("Existing database not upgraded for Spigot 2.2")
-                logging.error("Please upgrade the database using the \
-                utils/convert.py script found in the source repository.")
-                sys.exit(2)
-
     def _init_db_tables(self):
         """Initialize the database if it is new"""
 
@@ -264,6 +254,21 @@ class SpigotDB():
         self._db.commit()
         logging.debug("Initialized database tables")
         curs.close()
+
+    def check_old_db(self):
+        """Inspect schema of existing sqlite3 database and returne True if
+        the database needs to be upgraded to the post 2.2 schema."""
+
+        curs = self._db.cursor()
+        curs.execute("PRAGMA table_info(items);")
+        cols = curs.fetchall()
+        curs.close()
+        if "message" not in [col[1] for col in cols]:
+            logging.debug("Existing database reflects pre-2.2 schema")
+            return True
+        else:
+            logging.debug("Existing database reflects post-2.2 schema")
+            return False
 
     def close(self):
         """Cleanup after the db is no longer needed."""
@@ -540,7 +545,23 @@ if __name__ == "__main__":
 
     # Normal operation
     spigot_config.load()
+    # Check for pre-2.2 formatted spigot configuration file
+    if not spigot_config.no_config:
+        old_config = spigot_config.check_old_config()
+        if old_config:
+            logging.error("Config not upgraded for Spigot 2.2")
+            logging.error("Please upgrade the config using the \
+utils/convert.py script found in the source repository.")
+            sys.exit(2)
+
     spigot_db = SpigotDB()
+    # Test for pre-2.2 database structure
+    if spigot_db.check_old_db():
+        logging.error("Existing database not upgraded for Spigot 2.2")
+        logging.error("Please upgrade the database using the \
+utils/convert.py script found in the source repository.")
+        sys.exit(2)
+
     spigot_feed = SpigotFeeds(spigot_db, spigot_config)
     spigot_feed.poll_feeds()
     spigot_post = SpigotPost(spigot_db, spigot_config, spigot_feed)

@@ -281,7 +281,8 @@ class SpigotDB():
 
         curs = self._db.cursor()
         curs.execute("select * from items where link=?", [item_link])
-        if len(curs.fetchall()) > 0:
+        items = curs.fetchall()
+        if len(items) > 0:
             return True
         else:
             return False

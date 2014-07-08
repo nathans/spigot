@@ -56,10 +56,10 @@ class SpigotDBTest(unittest.TestCase):
     db_schema = [("feed", "text"), ("link", "text"), ("message", "text"),
                  ("date", "timestamp"), ("posted", "timestamp")]
     det_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-    new_link = "http://feedproxy.google.com/~r/LinuxLudditesOgg/~3/OioQT8AkFRo/"
-    old_link = "http://feedproxy.google.com/~r/LinuxLudditesOgg/~3/g_fPQhiUMWI/"
-    new_feed = ""
-    new_message = ""
+    new_url = "http://example.com/post/18"
+    new_feed = "http://example.com/feed.xml"
+    new_message = "Post #18 - http://example.com/post/18"
+    new_date = datetime.datetime(2014, 7, 1, 12, 15, 0)
 
     def setUp(self):
         if self.test_data:
@@ -81,6 +81,7 @@ class SpigotDBTest(unittest.TestCase):
         self.db.close()
         self.db = None
 
+
 class TestOldDB(SpigotDBTest):
     test_data = "utils/tests/test-old.sql"
 
@@ -88,22 +89,27 @@ class TestOldDB(SpigotDBTest):
 #        old_db = self.db.check_old_db()
 #        self.assertTrue(old_db)
 
+
 class TestExistingDB(SpigotDBTest):
 
     def test_check_link_false(self):
-        "Run the check_link method with a known new link"
+        "Run check_link with a known new link"
 
-        self.assertFalse(self.db.check_link(self.new_link))
-
-    def test_check_link_true(self):
-        "Run the check_link method with a known existing link"
-
-        self.assertTrue(self.db.check_link(self.old_link))
+        self.assertFalse(self.db.check_link(self.new_url))
 
     def test_add_item(self):
-        pass
-        # Testing add_item()
-        # Testing get_unposted_items()
+        "Run add_item and verify that the added item is in the DB"
+
+        self.db.add_item(feed_url=self.new_feed, link=self.new_url,
+                         message=self.new_message, date=self.new_date)
+        self.assertTrue(self.db.check_link(self.new_url))
+
+    def test_get_unposted_items(self):
+        "Run get_unposted_items and verify that result matches test data"
+
+        unposted = self.db.get_unposted_items(self.new_feed)
+        self.assertEquals(len(unposted), 6)
+
         # Testing mark_posted() and get_latest_post()
 
     def test_db_check(self):
@@ -111,6 +117,7 @@ class TestExistingDB(SpigotDBTest):
 
         old_db = self.db.check_old_db()
         self.assertFalse(old_db)
+
 
 class TestNewDB(SpigotDBTest):
     test_db_path = "test.db"

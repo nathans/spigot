@@ -95,6 +95,7 @@ class TestOldDB(SpigotDBTest):
         self.db.close()
         self.db = None
 
+
 class TestExistingDB(SpigotDBTest):
 
     def test_check_link_false(self):
@@ -120,7 +121,20 @@ class TestExistingDB(SpigotDBTest):
         unposted = self.db.get_unposted_items(self.new_feed)
         self.assertEquals(len(unposted), 6)
 
-        # Testing mark_posted() and get_latest_post()
+    def test_get_latest_post(self):
+        "Run get_latest_post and verify that result matches test data"
+
+        newest_post = datetime.datetime(2014, 6, 17, 3, 42, 52, 614399)
+        latest = self.db.get_latest_post(feed=self.new_feed)
+        self.assertEqual(latest, newest_post)
+
+    def test_mark_posted(self):
+        "Run mark_posted and verify the update via get_latest_post"
+
+        now = datetime.datetime.now()
+        self.db.mark_posted(item_link=self.old_url, date=now)
+        latest = self.db.get_latest_post(feed=self.new_feed)
+        self.assertEqual(latest, now)
 
     def test_db_check(self):
         "Test that a post-2.2 DB schema is not flagged as pre-2.2"

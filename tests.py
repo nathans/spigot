@@ -51,11 +51,12 @@ class TestNewConfig(unittest.TestCase):
 
 
 class SpigotDBTest(unittest.TestCase):
-    test_db_path = ":memory:"
+    test_db_path = "test.db"
     test_data = "utils/tests/test-existing.sql"
     db_schema = [("feed", "text"), ("link", "text"), ("message", "text"),
                  ("date", "timestamp"), ("posted", "timestamp")]
     det_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    old_url = "http://example.com/post/17"
     new_url = "http://example.com/post/18"
     new_feed = "http://example.com/feed.xml"
     new_message = "Post #18 - http://example.com/post/18"
@@ -80,6 +81,7 @@ class SpigotDBTest(unittest.TestCase):
     def tearDown(self):
         self.db.close()
         self.db = None
+        os.remove(self.test_db_path)
 
 
 class TestOldDB(SpigotDBTest):
@@ -89,6 +91,9 @@ class TestOldDB(SpigotDBTest):
 #        old_db = self.db.check_old_db()
 #        self.assertTrue(old_db)
 
+    def tearDown(self):
+        self.db.close()
+        self.db = None
 
 class TestExistingDB(SpigotDBTest):
 
@@ -96,6 +101,11 @@ class TestExistingDB(SpigotDBTest):
         "Run check_link with a known new link"
 
         self.assertFalse(self.db.check_link(self.new_url))
+
+    def test_check_link_true(self):
+        "Run check_link with a known new link"
+
+        self.assertTrue(self.db.check_link(self.old_url))
 
     def test_add_item(self):
         "Run add_item and verify that the added item is in the DB"
@@ -120,7 +130,6 @@ class TestExistingDB(SpigotDBTest):
 
 
 class TestNewDB(SpigotDBTest):
-    test_db_path = "test.db"
     test_data = None
 
     def test_new(self):
@@ -135,11 +144,6 @@ class TestNewDB(SpigotDBTest):
         curs.close()
         for col in cols:
             self.assertIn((col[1], col[2]), self.db_schema)
-
-    def tearDown(self):
-        self.db.close()
-        self.db = None
-        os.remove(self.test_db_path)
 
 
 if __name__ == '__main__':

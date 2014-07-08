@@ -302,8 +302,7 @@ class SpigotDB():
         return True
 
     def get_unposted_items(self, feed):
-        """Return a list of items in the database which have yet to be sent
-        through to the specified statusnet account."""
+        "Return a list of items in the database which have yet to be posted."
 
         curs = self._db.cursor()
         curs.execute("SELECT feed, link, message FROM items where (posted is NULL AND feed=?) \

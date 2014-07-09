@@ -87,13 +87,9 @@ class SpigotDBTest(unittest.TestCase):
 class TestOldDB(SpigotDBTest):
     test_data = "utils/tests/test-old.sql"
 
-#    def test_db_check(self):
-#        old_db = self.db.check_old_db()
-#        self.assertTrue(old_db)
-
-    def tearDown(self):
-        self.db.close()
-        self.db = None
+    def test_db_check(self):
+        old_db = self.db.check_old_db()
+        self.assertTrue(old_db)
 
 
 class TestExistingDB(SpigotDBTest):

@@ -1,15 +1,14 @@
 #! /usr/bin/env python
 
-import unittest
-
 import datetime
 import os
 import sqlite3
+import unittest
 
 import spigot
 
 
-class TestOldConfig(unittest.TestCase):
+class SpigotConfigTest(unittest.TestCase):
     test_config_path = "utils/tests/test.json"
 
     def setUp(self):
@@ -19,12 +18,24 @@ class TestOldConfig(unittest.TestCase):
     def tearDown(self):
         self.config = None
 
+
+class TestOldConfig(SpigotConfigTest):
+    test_config_path = "utils/tests/test-old.json"
+
     def test_config_check(self):
         old_config = self.config.check_old_config()
         self.assertTrue(old_config)
 
 
-class TestNewConfig(unittest.TestCase):
+class TestExistingConfig(SpigotConfigTest):
+
+    def test_check_existing_config(self):
+        old_config = self.config.check_old_config()
+        self.assertFalse(old_config)
+        self.assertFalse(self.config.no_config)
+
+
+class TestNewConfig(SpigotConfigTest):
     test_config_path = "test.json"
 
     def setUp(self):

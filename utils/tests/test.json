@@ -3,7 +3,7 @@
         "http://feeds.feedburner.com/LinuxLudditesOgg": {
             "interval": 2,
             "account": "spigotdev@fmrl.me",
-            "format": "$title $link"
+            "format": "%title% %link%"
         }
     }
 }

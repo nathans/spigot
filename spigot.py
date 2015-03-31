@@ -2,7 +2,7 @@
 #
 # spigot is a rate limiter for aggregating syndicated content to pump.io
 #
-# (c) 2011-2014 by Nathan D. Smith <nathan@smithfam.info>
+# (c) 2011-2015 by Nathan D. Smith <nathan@smithfam.info>
 # (c) 2014 Craig Maloney <craig@decafbad.net>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -173,7 +173,7 @@ class SpigotConfig(dict):
         print """Spigot formats your outgoing posts based on fields in the feed
               being scanned. Specify the field name surrounded by the '%'
               character to have it replaced with the corresponding value for
-              the item (e.g. %title% or %link)."""
+              the item (e.g. %title% or %link%)."""
         if test_feed:
             print """The following fields are present in an example item in
                      this feed:"""

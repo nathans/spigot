@@ -1,0 +1,9 @@
+{
+    "feeds": {
+        "http://feeds.feedburner.com/LinuxLudditesOgg": {
+            "interval": 2,
+            "account": "spigotdev@fmrl.me",
+            "format": "$t $l Wow-o"
+        }
+    }
+}

@@ -94,9 +94,6 @@ class SpigotConfig(dict):
     def add_user(self, webfinger=None):
         "Interactively add a new user to the configuration."
 
-        self.load()
-
-        user = {}
         print "Adding user"
         if not webfinger:
             webfinger = raw_input("Webfinger ID (e.g. bob@identi.ca): ")
@@ -106,24 +103,6 @@ class SpigotConfig(dict):
             name="Spigot",
             type="native")
         pump = PyPump(client, verifier_callback=simple_verifier)
-        # Now PyPump will walk the user through registration
-        # With that complete, retrieve relevant keys and secrets
-        credentials = pump.get_registration()
-        tokens = pump.get_token()
-        # Construct the user configuration dict
-        user["consumer_key"] = credentials[0]
-        user["consumer_secret"] = credentials[1]
-        user["oauth_token"] = tokens[0]
-        user["oauth_token_secret"] = tokens[1]
-
-        # Finish constructing the user configuration
-        if "accounts" in self:
-            self["accounts"][webfinger] = user
-        else:
-            users = {}
-            users[webfinger] = user
-            self["accounts"] = users
-        self.save()
 
     def add_feed(self):
         "Add a feed, account, interval, and format to the configuration."
@@ -179,13 +158,15 @@ class SpigotConfig(dict):
                      this feed:"""
             for field in test_feed["items"][0].keys():
                 print field
-        form = raw_input("Format: ")
+        form = raw_input("Message format: ")
+        title = raw_input("Title format (optional): ")
 
         # Put it all together
         feed = {}
         feed["account"] = account
         feed["interval"] = interval
         feed["format"] = form
+        feed["title"] = title
 
         if "feeds" in self:
             self["feeds"][url] = feed
@@ -249,7 +230,8 @@ class SpigotDB():
         curs = self._db.cursor()
         # Figure out db tables based on tricklepost
         create_query = """create table items (feed text, link text,
-                          message text, date timestamp, posted timestamp)"""
+                          message text, title text, date timestamp,
+                          posted timestamp)"""
         curs.execute(create_query)
         self._db.commit()
         logging.debug("Initialized database tables")
@@ -288,13 +270,13 @@ class SpigotDB():
             return False
         curs.close()
 
-    def add_item(self, feed_url, link, message, date):
+    def add_item(self, feed_url, link, message, title, date):
         """Add an item to the database with the given parameters. Return True
         if successful."""
 
         curs = self._db.cursor()
-        curs.execute("insert into items(feed, link, message, date) \
-            values (?, ?, ?, ?)", (feed_url, link, message, date))
+        curs.execute("insert into items(feed, link, message, title, date) \
+            values (?, ?, ?, ?, ?)", (feed_url, link, message, title, date))
         logging.debug("    Added item %s to database" % link)
         curs.close()
 
@@ -305,7 +287,8 @@ class SpigotDB():
         "Return a list of items in the database which have yet to be posted."
 
         curs = self._db.cursor()
-        curs.execute("SELECT feed, link, message FROM items where (posted is NULL AND feed=?) \
+        curs.execute("SELECT feed, link, message, title FROM items \
+            where (posted is NULL AND feed=?) \
             ORDER BY date ASC", [feed])
         unposted_items = curs.fetchall()
         num_items = len(unposted_items)
@@ -355,11 +338,11 @@ class SpigotFeeds():
         self._spigotdb = db
         self._config = config
 
-    def format_message(self, feed, entry):
+    def format_element(self, feed, entry, element):
         """Returns an outgoing message for the given entry based on the given
         feed's configured format."""
 
-        message = self._config["feeds"][feed]["format"]
+        message = self._config["feeds"][feed][element]
         # Store a list of tuples containing format string and value
         replaces = []
         field_re = re.compile("%\w+%")
@@ -420,12 +403,14 @@ class SpigotFeeds():
             logging.debug("    Date: %s" % datetime.isoformat(date_struct))
             logging.debug("    Link: %s" % link)
             # Craft the message based feed format string
-            message = self.format_message(url, p.entries[i])
+            message = self.format_element(url, p.entries[i], "format")
             logging.debug("    Message: %s" % message)
+            title = self.format_element(url, p.entries[i], "title")
+            logging.debug("    Title: %s" % title)
             # Check to see if item has already entered the database
             if not self._spigotdb.check_link(link):
                 logging.debug("    Not in database")
-                self._spigotdb.add_item(url, link, message, date_struct)
+                self._spigotdb.add_item(url, link, message, title, date_struct)
                 new_items += 1
             else:
                 logging.debug("    Already in database")
@@ -474,24 +459,21 @@ class SpigotPost():
         will be posted each time this method runs."""
 
         for feed, account, interval, form in self._config.get_feeds():
-            if account not in self._config["accounts"]:
-                logging.error("Account %s not configured, unable to post."
-                              % account)
-                sys.exit(2)
+            # No longer needed
+            #if account not in self._config["accounts"]:
+            #    logging.error("Account %s not configured, unable to post."
+            #                  % account)
+            #    sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
             # Initialize Pump.IO connection here
-            ac = self._config["accounts"][account]
+            # ac = self._config["accounts"][account]
             client = Client(
                 webfinger=account,
                 type="native",
-                name="Spigot",
-                key=ac["consumer_key"],
-                secret=ac["consumer_secret"])
+                name="Spigot")
             pump = PyPump(
                 client=client,
-                token=ac["oauth_token"],
-                secret=ac["oauth_token_secret"],
                 verifier_callback=simple_verifier)
 
             while self._spigotfeed.feed_ok_to_post(feed):
@@ -503,11 +485,15 @@ class SpigotPost():
                 feed = item[0]
                 link = item[1]
                 message = item[2]
+                # Optional title
+                title = None
+                if item[3]:
+                    title = item[3]
 
                 try:
                     logging.info("  Posting item %s from %s to account %s"
                                  % (link, feed, account))
-                    new_note = pump.Note(message)
+                    new_note = pump.Note(message, title)
                     new_note.to = pump.Public
                     new_note.send()
                     self._spigotdb.mark_posted(link)

@@ -401,16 +401,15 @@ class SpigotFeeds():
                 date = p.entries[i].updated_parsed
             date_struct = datetime.fromtimestamp(mktime(date))
             logging.debug("    Date: %s" % datetime.isoformat(date_struct))
-            logging.debug("    Link: %s" % link)
             # Craft the message based feed format string
             message = self.format_element(url, p.entries[i], "format")
             logging.debug("    Message: %s" % message)
-            title = self.format_element(url, p.entries[i], "title")
-            logging.debug("    Title: %s" % title)
+            note_title = self.format_element(url, p.entries[i], "title")
+            logging.debug("    Note Title: %s" % note_title)
             # Check to see if item has already entered the database
             if not self._spigotdb.check_link(link):
                 logging.debug("    Not in database")
-                self._spigotdb.add_item(url, link, message, title, date_struct)
+                self._spigotdb.add_item(url, link, message, note_title, date_struct)
                 new_items += 1
             else:
                 logging.debug("    Already in database")
@@ -459,15 +458,9 @@ class SpigotPost():
         will be posted each time this method runs."""
 
         for feed, account, interval, form in self._config.get_feeds():
-            # No longer needed
-            #if account not in self._config["accounts"]:
-            #    logging.error("Account %s not configured, unable to post."
-            #                  % account)
-            #    sys.exit(2)
             logging.debug("Finding eligible posts in feed %s" % feed)
             unposted_items = self._spigotdb.get_unposted_items(feed)
             # Initialize Pump.IO connection here
-            # ac = self._config["accounts"][account]
             client = Client(
                 webfinger=account,
                 type="native",

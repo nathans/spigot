@@ -65,13 +65,15 @@ class SpigotDBTest(unittest.TestCase):
     test_db_path = "test.db"
     test_data = "utils/tests/test-existing.sql"
     db_schema = [("feed", "text"), ("link", "text"), ("message", "text"),
-                 ("date", "timestamp"), ("posted", "timestamp")]
+                 ("title", "text"), ("date", "timestamp"),
+                 ("posted", "timestamp")]
     det_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
     old_url = "http://example.com/post/17"
     new_url = "http://example.com/post/18"
     new_feed = "http://example.com/feed.xml"
     new_message = "Post #18 - http://example.com/post/18"
     new_date = datetime.datetime(2014, 7, 1, 12, 15, 0)
+    new_title = "Post #18"
 
     def setUp(self):
         if self.test_data:
@@ -119,7 +121,8 @@ class TestExistingDB(SpigotDBTest):
         "Run add_item and verify that the added item is in the DB"
 
         self.db.add_item(feed_url=self.new_feed, link=self.new_url,
-                         message=self.new_message, date=self.new_date)
+                         message=self.new_message, title=self.new_title,
+                         date=self.new_date)
         self.assertTrue(self.db.check_link(self.new_url))
 
     def test_get_unposted_items(self):
@@ -171,6 +174,6 @@ if __name__ == '__main__':
     unittest.main()
 
 # TODO
+# Remake database existing test
 # Config
 # - Upgrade of spigot config
-# -

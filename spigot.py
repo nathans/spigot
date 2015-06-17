@@ -91,10 +91,10 @@ class SpigotConfig(dict):
             logging.exception("Could not save configuration file")
             sys.exit(2)
 
-    def add_user(self, webfinger=None):
-        "Interactively add a new user to the configuration."
+    def add_account(self, webfinger=None):
+        "Interactively add a new account to the configuration."
 
-        print "Adding user"
+        print "Adding account"
         if not webfinger:
             webfinger = raw_input("Webfinger ID (e.g. bob@identi.ca): ")
         # Initialize the Oauth relationship
@@ -102,7 +102,13 @@ class SpigotConfig(dict):
             webfinger=webfinger,
             name="Spigot",
             type="native")
+
         pump = PyPump(client, verifier_callback=simple_verifier)
+        try:
+            print pump.me
+        except:
+            logging.exception("Could not verify account")
+            sys.exit(2)
 
     def add_feed(self):
         "Add a feed, account, interval, and format to the configuration."
@@ -409,7 +415,8 @@ class SpigotFeeds():
             # Check to see if item has already entered the database
             if not self._spigotdb.check_link(link):
                 logging.debug("    Not in database")
-                self._spigotdb.add_item(url, link, message, note_title, date_struct)
+                self._spigotdb.add_item(url, link, message, note_title,
+                                        date_struct)
                 new_items += 1
             else:
                 logging.debug("    Already in database")
@@ -512,11 +519,11 @@ if __name__ == "__main__":
     # No configuration present, doing welcom wagon
     if spigot_config.no_config:
         print "No configuration file now, running welcome wizard."
-        spigot_config.add_user()
+        spigot_config.add_account()
         spigot_config.add_feed()
         sys.exit(0)
     if args.add_account:
-        spigot_config.add_user()
+        spigot_config.add_account()
         sys.exit(0)
     if args.add_feed:
         spigot_config.add_feed()

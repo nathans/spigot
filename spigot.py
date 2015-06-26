@@ -96,7 +96,7 @@ class SpigotConfig(dict):
 
         print "Adding account"
         if not webfinger:
-            webfinger = raw_input("Webfinger ID (e.g. bob@identi.ca): ")
+            webfinger = raw_input("Webfinger ID (e.g. bob@example.com): ")
         # Initialize the Oauth relationship
         client = Client(
             webfinger=webfinger,
@@ -115,9 +115,6 @@ class SpigotConfig(dict):
 
         # TODO Add feature to specify to and cc for each feed
         self.load()
-        if "accounts" not in self:
-            logging.error("No accounts configured.")
-            sys.exit(2)
         account = None
         interval = None
         form = None
@@ -131,22 +128,7 @@ class SpigotConfig(dict):
             logging.debug("Successfully parsed feed %s" % url)
         except:
             logging.warning("Could not parse feed %s" % url)
-        accounts = self["accounts"].keys()
-        print "Choose an account:"
-        for i in range(len(accounts)):
-            print "%d. %s" % (i, accounts[i])
-
-        valid_account = False
-        while not valid_account:
-            try:
-                account_raw = int(raw_input("Number: "))
-                try:
-                    account = accounts[account_raw]
-                    valid_account = True
-                except:
-                    print "Choice out of range."
-            except:
-                print "Not a number."
+        account = raw_input("Account Webfinger ID (e.g. bob@example.com): ")
         valid_interval = False
         while not valid_interval:
             try:
@@ -164,6 +146,8 @@ class SpigotConfig(dict):
                      this feed:"""
             for field in test_feed["items"][0].keys():
                 print field
+        print """Next you will be prompted for the message format and
+              optional title format for outgoing posts."""
         form = raw_input("Message format: ")
         title = raw_input("Title format (optional): ")
 

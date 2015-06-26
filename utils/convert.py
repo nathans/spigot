@@ -1,7 +1,5 @@
-
 #! /usr/bin/env python
-
-# Tool to upgrade databases of spigot 2.1 and below to spigot 2.2 and higher
+# Tool to upgrade db and config from spigot 2.2 to 2.3+
 
 import argparse
 import logging
@@ -34,53 +32,31 @@ if __name__ == "__main__":
         logging.exception("Could not connect to database %s" % args.database)
         sys.exit(2)
 
-    # Alter table to add new columns
+    # Ensure db schema is correct
     curs = db.cursor()
     curs.execute("PRAGMA table_info(items);")
     cols = curs.fetchall()
-    if "message" not in [col[1] for col in cols]:
-        curs.execute("ALTER TABLE items ADD COLUMN message text")
-        logging.info("Added message column to DB")
-    elif "title" not in [col[1] for col in cols]:
-        curs.execute("ALTER TABLE items ADD COLUMN title text")
-        logging.info("Added title column to DB")
-
+    required = "message", "title"
+    for element in required:
+        if element not in [col[1] for col in cols]:
+            curs.execute("ALTER TABLE items ADD COLUMN %s text" % element)
+            logging.info("Added %s column to DB" % element)
     curs.close()
+    logging.info("Committing database")
     db.commit()
 
-
-    posts_curs = db.cursor()
-    posts_curs.execute("SELECT feed, link, title FROM items")
-    all_items = posts_curs.fetchall()
-    posts_curs.close()
-    for item in all_items:
-        feed = item[0]
-        link = item[1]
-        title = item[2]
-        logging.info("Item: %s" % link)
-        format = config["feeds"][feed]["format"]
-
-        transforms = [("$t", title), ("$l", link)]
-        for string, val in transforms:
-            format = format.replace(string, val)
-
-        logging.info("  Message: %s" % format)
-        a_curs = db.cursor()
-        a_curs.execute("UPDATE items SET message=? WHERE link=?",
-                       (format, link))
-        a_curs.close()
-
-    logging.info("Commiting database")
-    db.commit()
-
-    # Transform config file
-    changes = [("$t", "%title%"), ("$l", "%link%")]
-    conf_file = open(args.config, "r")
-    conf = conf_file.read()
-    conf_file.close()
-    for old, new in changes:
-        conf = conf.replace(old, new)
+    # Clean up config file
+    # Add an empty title element to each feed
+    for feed in config["feeds"].keys():
+        if "title" not in config["feeds"][feed].keys():
+            config["feeds"][feed]["title"] = ""
+            logging.info("Added blank title element to each feed")
+    # Remove the accounts element
+    if "accounts" in config.keys():
+        logging.info("Removing accounts element")
+        del config["accounts"]
+        logging.info("You'll prompted to reauthorize accounts at next run")
     logging.info("Writing modified config file")
-    new_file = open(args.config, "w")
-    new_file.write(conf)
-    new_file.close()
+    open(args.config, "w").write(json.dumps(config, indent=4))
+
+    logging.info("Upgrade of db/config complete.")

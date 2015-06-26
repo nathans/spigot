@@ -546,7 +546,7 @@ utils/convert.py script found in the source repository.")
     spigot_db = SpigotDB()
     # Test for pre-2.2 database structure
     if spigot_db.check_old_db():
-        logging.error("Existing database not upgraded for Spigot 2.2")
+        logging.error("Existing database not upgraded for the latest spigot")
         logging.error("Please upgrade the database using the \
 utils/convert.py script found in the source repository.")
         sys.exit(2)

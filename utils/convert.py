@@ -1,3 +1,4 @@
+
 #! /usr/bin/env python
 
 # Tool to upgrade databases of spigot 2.1 and below to spigot 2.2 and higher
@@ -33,12 +34,20 @@ if __name__ == "__main__":
         logging.exception("Could not connect to database %s" % args.database)
         sys.exit(2)
 
-    # Alter table to add message column
+    # Alter table to add new columns
     curs = db.cursor()
-    curs.execute("ALTER TABLE items ADD COLUMN message text")
+    curs.execute("PRAGMA table_info(items);")
+    cols = curs.fetchall()
+    if "message" not in [col[1] for col in cols]:
+        curs.execute("ALTER TABLE items ADD COLUMN message text")
+        logging.info("Added message column to DB")
+    elif "title" not in [col[1] for col in cols]:
+        curs.execute("ALTER TABLE items ADD COLUMN title text")
+        logging.info("Added title column to DB")
+
     curs.close()
     db.commit()
-    logging.info("Added message column to DB")
+
 
     posts_curs = db.cursor()
     posts_curs.execute("SELECT feed, link, title FROM items")

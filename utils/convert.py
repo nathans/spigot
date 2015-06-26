@@ -7,6 +7,8 @@ try:
     import json
 except ImportError:
     import simplejson as json
+import os
+import shutil
 import sqlite3
 import sys
 
@@ -18,6 +20,22 @@ if __name__ == "__main__":
 
     logging.basicConfig(level="INFO",
                         format='%(asctime)s %(levelname)s: %(message)s')
+    # Back it up
+    db_bak_file = "%s.bak" % args.database
+    if not os.path.exists(db_bak_file):
+        shutil.copyfile(args.database, db_bak_file)
+        logging.info("DB file backed up to %s" % db_bak_file)
+    else:
+        logging.error("Backup file %s already exists" % db_bak_file)
+        sys.exit(2)
+    conf_bak_file = "%s.bak" % args.config
+    if not os.path.exists(conf_bak_file):
+        shutil.copyfile(args.config, conf_bak_file)
+        logging.info("Config file backed up to %s" % conf_bak_file)
+    else:
+        logging.error("Backup file %s already exists" % conf_bak_file)
+        sys.exit(2)
+
     # Set up configuration object
     try:
         config = json.loads(open(args.config, "r").read())

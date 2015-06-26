@@ -26,14 +26,14 @@ Requirements
 
 spigot depends on Python 2.6 or higher and the following non-standard libraries
 
-- pypump >= 0.5 https://pypi.python.org/pypi/PyPump
+- pypump = 0.6 https://pypi.python.org/pypi/PyPump
 - Universal Feed Parser >= 5.0 http://www.feedparser.org/
 - argparse >= 1.0 (required for Python 2.6) 
 
 Git Repo
 ========
 
-Spigot's code is hosted on Gitorious: http://gitorious.org/spigot
+Spigot's code is hosted on GitHub: https://github.com/nathans/spigot
 
   
 Installation
@@ -67,23 +67,25 @@ To add a new feed:
 Running
 =======
 
-After initial configuration, running spigot will poll your feeds and post to
-the configured accounts if the intervals allow. Running without specifying any
-options will result in no console output unless there are warnings or errors.
-This is optimal for running spigot as a cron job. To view more verbose logging,
-you can specify the --log-level option.
+After initial configuration, running spigot will poll your feeds and
+post to the configured accounts if the intervals allow. Running
+without specifying any options will result in no console output unless
+there are warnings or errors.  This is optimal for running spigot as a
+cron job. To view more verbose logging, you can specify
+the --log-level option.
 
 
 Cron
 ====
 
-Spigot can be run as a cron job to make sure that the flow of posts is regular.
-Here is an example crontab entry to run every at the 10th minute of each hour:
+Spigot can be run as a cron job to make sure that the flow of posts is
+regular.  Here is an example crontab entry to run every at the 10th
+minute of each hour:
 
     10 * * * * cd ~/spigot; spigot.py
 
-Remember, spigot looks for its database and configuration file in the current
-working directory.
+Remember, spigot looks for its database and configuration file in the
+current working directory.
 
 
 FAQ
@@ -96,6 +98,10 @@ Spigot stores its configuration (spigot.json) and database (spigot.db)
 in the working directory from which it is invoked. If you are running
 Spigot from a cron job, you'll want to first cd into the directory
 containing these.
+
+Starting with version 2.3.0, spigot delegates the storage of
+credentials to PyPump. These are stored by default in
+~/.config/PyPump/credentials.json
 
 How often should I run Spigot?
 ------------------------------
@@ -117,7 +123,7 @@ In brief, Spigot should run more often than you want to actually post.
 Credits
 =======
 
-(c) 2011-2014 Nathan D. Smith <nathan@smithfam.info>
+(c) 2011-2015 Nathan D. Smith <nathan@smithfam.info>
 (c) 2014 Craig Maloney <craig@decafbad.net>
 
 License

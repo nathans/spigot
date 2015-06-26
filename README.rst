@@ -10,13 +10,13 @@ accounts at a limited rate. This way you can syndicate content to a
 pump.io account without worrying about flooding the account when
 updates to the feed are frequent.
 
-First you set up connections to one or more pump.io accounts using
-OAuth. Then you add RSS or Atom feeds, specifying which account to
-post to, the maximum post frequency, and the format of the posted
-message. Each time spigot runs, it checks the feeds for new posts, and
-determines whether or not a new item should be posted based on the
-specified interval. Spigot can be run in a cron job (or manually) to
-make regular posts.
+First you add RSS or Atom feeds, specifying which account to post to,
+the maximum post frequency, and the format of the posted
+message. Spigot will verify and authorize the account once, after
+which it can be reused for additional feeds. Each time spigot runs, it
+checks the feeds for new posts, and determines whether or not a new
+item should be posted based on the specified interval. Spigot can be
+run in a cron job (or manually) to make regular posts.
 
 Spigot is inspired by Tricklepost and Brdcst.it. 
 
@@ -55,10 +55,7 @@ Configuration
 To configure spigot for first use, run it from the command-line:
     $ spigot.py
 
-You will be prompted to configure one account and one feed.
-
-To subsequently add an account:
-    $ spigot.py --add-account
+You will be prompted to configure one feed and its account.
 
 To add a new feed:
     $ spigot.py --add-feed

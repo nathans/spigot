@@ -91,25 +91,6 @@ class SpigotConfig(dict):
             logging.exception("Could not save configuration file")
             sys.exit(2)
 
-    def add_account(self, webfinger=None):
-        "Interactively add a new account to the configuration."
-
-        print "Adding account"
-        if not webfinger:
-            webfinger = raw_input("Webfinger ID (e.g. bob@example.com): ")
-        # Initialize the Oauth relationship
-        client = Client(
-            webfinger=webfinger,
-            name="Spigot",
-            type="native")
-
-        pump = PyPump(client, verifier_callback=simple_verifier)
-        try:
-            print pump.me
-        except:
-            logging.exception("Could not verify account")
-            sys.exit(2)
-
     def add_feed(self):
         "Add a feed, account, interval, and format to the configuration."
 
@@ -129,6 +110,20 @@ class SpigotConfig(dict):
         except:
             logging.warning("Could not parse feed %s" % url)
         account = raw_input("Account Webfinger ID (e.g. bob@example.com): ")
+        # Verify that the account is valid
+        # PyPump will authorize the account if necessary
+        client = Client(
+            webfinger=account,
+            name="Spigot",
+            type="native")
+        try:
+            pump = PyPump(client, verifier_callback=simple_verifier)
+            print pump.me
+        except:
+            logging.exception("Could not verify account")
+            sys.exit(2)
+
+        # Obtain the posting interval
         valid_interval = False
         while not valid_interval:
             try:
@@ -491,7 +486,6 @@ class SpigotPost():
 if __name__ == "__main__":
     spigot_config = SpigotConfig()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--add-account", "-a", action="store_true")
     parser.add_argument("--add-feed", "-f", action="store_true")
     log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     parser.add_argument("--log-level", "-l", choices=log_levels,
@@ -506,11 +500,7 @@ if __name__ == "__main__":
     # No configuration present, doing welcom wagon
     if spigot_config.no_config:
         print "No configuration file now, running welcome wizard."
-        spigot_config.add_account()
         spigot_config.add_feed()
-        sys.exit(0)
-    if args.add_account:
-        spigot_config.add_account()
         sys.exit(0)
     if args.add_feed:
         spigot_config.add_feed()

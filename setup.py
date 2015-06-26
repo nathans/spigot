@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='spigot',
-      version='2.2.3',
+      version='2.3.0',
       description='Rate-limited feed aggregation to pump.io',
       long_description=open("README.rst").read(),
       author='Nathan D. Smith',
@@ -12,7 +12,7 @@ setup(name='spigot',
       scripts=['spigot.py'],
       license="GPLv3",
       install_requires=[
-          "pypump>=0.5",
+          "pypump=0.6",
           "feedparser>=5.0",
           "argparse>=1.0",
           ],

@@ -244,7 +244,7 @@ class SpigotDB():
         curs.close()
 
     def check_old_db(self):
-        """Inspect schema of existing sqlite3 database and returne True if
+        """Inspect schema of existing sqlite3 database and return True if
         the database needs to be upgraded to the post 2.2 schema."""
 
         curs = self._db.cursor()
@@ -252,10 +252,13 @@ class SpigotDB():
         cols = curs.fetchall()
         curs.close()
         if "message" not in [col[1] for col in cols]:
-            logging.debug("Existing database reflects pre-2.2 schema")
+            logging.debug("Existing database lacks 'message' field")
+            return True
+        elif "title" not in [col[1] for col in cols]:
+            logging.debug("Existing database lacks 'title' field")
             return True
         else:
-            logging.debug("Existing database reflects post-2.2 schema")
+            logging.debug("Existing database is up-to-date")
             return False
 
     def close(self):

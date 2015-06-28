@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='spigot',
-      version='2.3.0',
+      version='2.3',
       description='Rate-limited feed aggregation to pump.io',
       long_description=open("README.rst").read(),
       author='Nathan D. Smith',

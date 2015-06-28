@@ -88,6 +88,31 @@ current working directory.
 FAQ
 ===
 
+How can I upgrade an existing install of spigot?
+------------------------------------------------
+
+There are two basic steps. First upgrade the code version, then upate
+your configuration file and database to be compatible with the latest
+version of spigot.
+
+If you installed via pip, simply run:
+
+    $ pip install spigot --upgrade
+
+If you installed manually, be sure to update PyPump to version 0.6.
+
+The source code includes a script in the utils folder called
+convert.py. Run that in the same folder as your configuration file and
+database, and the script will modify your database and configuration
+file to work with the newest release of spigot.
+
+After obtaining the source:
+
+    $ python utils/convert.py
+
+The upgrade script creates a backup of both files in case anything
+goes wrong.
+
 Where does Spigot store its configuration files and database?
 -------------------------------------------------------------
 

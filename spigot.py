@@ -37,7 +37,8 @@ import feedparser
 from pypump import PyPump
 from pypump import Client
 
-SPIGOT_VERSION="2.3.0"
+SPIGOT_VERSION = "2.3.0"
+
 
 def simple_verifier(url):
     print 'Please follow the instructions at the following URL:'

@@ -37,6 +37,7 @@ import feedparser
 from pypump import PyPump
 from pypump import Client
 
+SPIGOT_VERSION="2.3.0"
 
 def simple_verifier(url):
     print 'Please follow the instructions at the following URL:'
@@ -486,6 +487,7 @@ class SpigotPost():
 if __name__ == "__main__":
     spigot_config = SpigotConfig()
     parser = argparse.ArgumentParser()
+    parser.add_argument("--version", "-v", action="store_true")
     parser.add_argument("--add-feed", "-f", action="store_true")
     log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     parser.add_argument("--log-level", "-l", choices=log_levels,
@@ -498,6 +500,9 @@ if __name__ == "__main__":
     logging.debug("spigot startup")
 
     # No configuration present, doing welcom wagon
+    if args.version:
+        print "Spigot %s" % SPIGOT_VERSION
+        sys.exit(0)
     if spigot_config.no_config:
         print "No configuration file now, running welcome wizard."
         spigot_config.add_feed()

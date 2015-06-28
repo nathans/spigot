@@ -91,7 +91,7 @@ FAQ
 How can I upgrade an existing install of spigot?
 ------------------------------------------------
 
-There are two basic steps. First upgrade the code version, then upate
+There are two basic steps. First upgrade the code version, then update
 your configuration file and database to be compatible with the latest
 version of spigot.
 

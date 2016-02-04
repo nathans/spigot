@@ -107,15 +107,15 @@ class TestOldDB(SpigotDBTest):
 
 class TestExistingDB(SpigotDBTest):
 
-    def test_check_id_false(self):
-        "Run check_id with a known new link"
+    def test_check_link_false(self):
+        "Run check_link with a known new link"
 
-        self.assertFalse(self.db.check_id(self.new_url))
+        self.assertFalse(self.db.check_link(self.new_url))
 
-    def test_check_id_true(self):
-        "Run check_id with a known new link"
+    def test_check_link_true(self):
+        "Run check_link with a known new link"
 
-        self.assertTrue(self.db.check_id(self.old_url))
+        self.assertTrue(self.db.check_link(self.old_url))
 
     def test_add_item(self):
         "Run add_item and verify that the added item is in the DB"
@@ -123,7 +123,7 @@ class TestExistingDB(SpigotDBTest):
         self.db.add_item(feed_url=self.new_feed, link=self.new_url,
                          message=self.new_message, title=self.new_title,
                          date=self.new_date)
-        self.assertTrue(self.db.check_id(self.new_url))
+        self.assertTrue(self.db.check_link(self.new_url))
 
     def test_get_unposted_items(self):
         "Run get_unposted_items and verify that result matches test data"

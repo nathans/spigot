@@ -125,18 +125,6 @@ Starting with version 2.3.0, spigot delegates the storage of
 credentials to PyPump. These are stored by default in
 ~/.config/PyPump/credentials.json
 
-How do I move spigot to another machine without losing post history?
---------------------------------------------------------------------
-
-The essence of a spigot installation is the configuration file
-(spigot.json), the database (spigot.db), and the OAuth credential
-information (see above). To move spigot, create a fresh install on the
-new location, but before running it, copying the existing files into
-the appropriate locations (the working directory from which spigot is
-invoked for the configuration file and database, and ~/.config/PyPump/
-for the credentials.json file).
-
-
 How often should I run Spigot?
 ------------------------------
 

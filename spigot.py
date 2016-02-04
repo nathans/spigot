@@ -215,15 +215,7 @@ class SpigotDB():
         """Initialize the database if it is new"""
 
         curs = self._db.cursor()
-        # Database schema
-        # feed = URL of the feed source, used to uniquely identify feeds
-        # link = Unique ID of entries, based on RSS GUID element and atom
-        #        id elements. Retains the legacy name "link" for backwards
-        #        compatability reasons.
-        # message = The user-customizable output for the pump.io post body
-        # title = Optional user-customizable output for pump.io post title
-        # date = The timestamp of the entry in the feed, for ordering
-        # posted = The timestamp of when spigot posted this item
+        # Figure out db tables based on tricklepost
         create_query = """create table items (feed text, link text,
                           message text, title text, date timestamp,
                           posted timestamp)"""
@@ -256,12 +248,11 @@ class SpigotDB():
         self._db.close()
         logging.debug("Closed connection to database")
 
-    def check_id(self, entry_id):
-        """Returns true if the specified ID is already in the database."""
+    def check_link(self, item_link):
+        """Returns true if the specified link is already in the database."""
 
         curs = self._db.cursor()
-        # Still "link" in database for legacy reasons
-        curs.execute("select * from items where link=?", [entry_id])
+        curs.execute("select * from items where link=?", [item_link])
         items = curs.fetchall()
         if len(items) > 0:
             return True
@@ -391,8 +382,8 @@ class SpigotFeeds():
             logging.debug("  Processing item %d" % i)
             title = p.entries[i].title
             logging.debug("    Title: %s" % title)
-            entry_id = p.entries[i].id
-            logging.debug("    ID: %s" % entry_id)
+            link = p.entries[i].link
+            logging.debug("    Link: %s" % link)
             # Check for existence of published_parsed, fail back to updated
             if 'published_parsed' in p.entries[i]:
                 date = p.entries[i].published_parsed
@@ -406,9 +397,9 @@ class SpigotFeeds():
             note_title = self.format_element(url, p.entries[i], "title")
             logging.debug("    Note Title: %s" % note_title)
             # Check to see if item has already entered the database
-            if not self._spigotdb.check_id(entry_id):
+            if not self._spigotdb.check_link(link):
                 logging.debug("    Not in database")
-                self._spigotdb.add_item(url, entry_id, message, note_title,
+                self._spigotdb.add_item(url, link, message, note_title,
                                         date_struct)
                 new_items += 1
             else:
@@ -476,7 +467,7 @@ class SpigotPost():
                     # Escape the loop if there are no new posts waiting
                     break
                 feed = item[0]
-                entry_id = item[1]
+                link = item[1]
                 message = item[2]
                 # Optional title
                 title = None
@@ -485,11 +476,11 @@ class SpigotPost():
 
                 try:
                     logging.info("  Posting item %s from %s to account %s"
-                                 % (entry_id, feed, account))
+                                 % (link, feed, account))
                     new_note = pump.Note(message, title)
                     new_note.to = pump.Public
                     new_note.send()
-                    self._spigotdb.mark_posted(entry_id)
+                    self._spigotdb.mark_posted(link)
                 except:
                     logging.exception("  Unable to post item")
 

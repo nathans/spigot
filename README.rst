@@ -157,7 +157,7 @@ In brief, Spigot should run more often than you want to actually post.
 Credits
 =======
 
-(c) 2011-2015 Nathan D. Smith <nathan@smithfam.info>
+(c) 2011-2016 Nathan D. Smith <nathan@smithfam.info>
 (c) 2014 Craig Maloney <craig@decafbad.net>
 
 License

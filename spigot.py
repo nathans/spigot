@@ -2,7 +2,7 @@
 #
 # spigot is a rate limiter for aggregating syndicated content to pump.io
 #
-# (c) 2011-2015 by Nathan D. Smith <nathan@smithfam.info>
+# (c) 2011-2016 by Nathan D. Smith <nathan@smithfam.info>
 # (c) 2014 Craig Maloney <craig@decafbad.net>
 #
 # This program is free software; you can redistribute it and/or modify

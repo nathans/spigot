@@ -269,14 +269,14 @@ class SpigotDB():
             return False
         curs.close()
 
-    def add_item(self, feed_url, link, message, title, date):
+    def add_item(self, feed_url, item_id, message, title, date):
         """Add an item to the database with the given parameters. Return True
         if successful."""
 
         curs = self._db.cursor()
         curs.execute("insert into items(feed, link, message, title, date) \
-            values (?, ?, ?, ?, ?)", (feed_url, link, message, title, date))
-        logging.debug("    Added item %s to database" % link)
+            values (?, ?, ?, ?, ?)", (feed_url, item_id, message, title, date))
+        logging.debug("    Added item %s to database" % item_id)
         curs.close()
 
         self._db.commit()
@@ -286,7 +286,7 @@ class SpigotDB():
         "Return a list of items in the database which have yet to be posted."
 
         curs = self._db.cursor()
-        curs.execute("SELECT feed, link, message, title FROM items \
+        curs.execute("SELECT feed, link, message, title, date  FROM items \
             where (posted is NULL AND feed=?) \
             ORDER BY date ASC", [feed])
         unposted_items = curs.fetchall()
@@ -295,16 +295,16 @@ class SpigotDB():
         curs.close()
         return unposted_items
 
-    def mark_posted(self, item_link, date=None):
+    def mark_posted(self, item_id, date=None):
         """Mark the given item posted by setting its posted datetime to now."""
 
         if not date:
             date = datetime.utcnow()
         curs = self._db.cursor()
         curs.execute("UPDATE items SET posted=? WHERE link=?",
-                     (date, item_link))
+                     (date, item_id))
         logging.debug("  Updated posted time of item %s in database"
-                      % item_link)
+                      % item_id)
         curs.close()
         self._db.commit()
 
@@ -326,6 +326,25 @@ class SpigotDB():
             logging.debug("  No items from feed %s have been posted" % feed)
             return None
 
+        def catch_up(self, date=None):
+            """Mark items posted chronilogicaly up to the given date."""
+
+            if not date:
+                date = datetime.utcnow()
+#            logging.
+            # poll feeds here?
+            # nah, probably not
+            unposted_items = self.get_unposted_items()
+            if unposted_items:
+                for unposted in unposted_items:
+                    # unposted[4] is the date element
+                    item_id = unposted[1]
+                    item_date = unposted[4]
+                    if unposted[4] <= date:
+                        self.mark_posted(item_id)
+                    else:
+                        break
+                
 
 class SpigotFeeds():
     """
